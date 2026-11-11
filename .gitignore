@@ -1,0 +1,16 @@
+# Harness SDD (feature_list, specs, changelog de desarrollo): no se versiona
+features/
+
+# Datos locales (docs/configuration.md §5)
+data/
+*.db
+*.db-shm
+*.db-wal
+secrets.json
+
+# Artefactos de compilación .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/

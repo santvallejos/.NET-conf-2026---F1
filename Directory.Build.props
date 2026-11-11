@@ -1,0 +1,12 @@
+<Project>
+
+  <!-- Propiedades comunes a toda la solución. Ningún proyecto las sobrescribe (features/docs/conventions.md). -->
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

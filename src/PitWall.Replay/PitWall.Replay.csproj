@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\PitWall.Data\PitWall.Data.csproj" />
+  </ItemGroup>
+</Project>
