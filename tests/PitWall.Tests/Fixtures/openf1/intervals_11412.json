@@ -1,0 +1,6 @@
+[
+  {"date": "2026-11-08T17:03:30.707000+00:00", "session_key": 11412, "meeting_key": 1299, "driver_number": 43, "interval": 0.525, "gap_to_leader": 2.192},
+  {"date": "2026-11-08T17:03:31.020000+00:00", "session_key": 11412, "meeting_key": 1299, "driver_number": 12, "interval": 0.0, "gap_to_leader": 0.0},
+  {"date": "2026-11-08T17:03:33.973000+00:00", "session_key": 11412, "meeting_key": 1299, "driver_number": 43, "interval": 0.092, "gap_to_leader": 2.829},
+  {"date": "2026-11-08T18:01:47.290000+00:00", "session_key": 11412, "driver_number": 43, "gap_to_leader": "+1 LAP", "interval": 0.493, "meeting_key": 1299}
+]

@@ -1,0 +1,7 @@
+[
+  {"date": "2026-11-08T17:10:00.485000+00:00", "session_key": 11412, "driver_number": 43, "throttle": 34, "drs": null, "brake": 0, "meeting_key": 1299, "n_gear": 2, "speed": 113, "rpm": 9863},
+  {"date": "2026-11-08T17:10:00.645000+00:00", "session_key": 11412, "driver_number": 43, "throttle": 41, "drs": null, "brake": 0, "meeting_key": 1299, "n_gear": 2, "speed": 113, "rpm": 9913},
+  {"date": "2026-11-08T17:10:00.805000+00:00", "session_key": 11412, "driver_number": 43, "throttle": 43, "drs": null, "brake": 0, "meeting_key": 1299, "n_gear": 2, "speed": 115, "rpm": 10153},
+  {"date": "2026-11-08T17:10:01.045000+00:00", "session_key": 11412, "driver_number": 43, "throttle": 49, "drs": null, "brake": 0, "meeting_key": 1299, "n_gear": 2, "speed": 118, "rpm": 10395},
+  {"date": "2026-11-08T17:10:01.205000+00:00", "session_key": 11412, "driver_number": 43, "throttle": 55, "drs": null, "brake": 0, "meeting_key": 1299, "n_gear": 2, "speed": 118, "rpm": 10695}
+]

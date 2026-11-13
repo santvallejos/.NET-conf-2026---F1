@@ -1,0 +1,4 @@
+[
+  {"position": 5, "driver_number": 12, "number_of_laps": 71, "points": 10.0, "dnf": false, "dns": false, "dsq": false, "gap_to_leader": 41.017, "duration": 5764.521, "meeting_key": 1299, "session_key": 11412},
+  {"position": 13, "driver_number": 43, "number_of_laps": 70, "points": 0.0, "dnf": false, "dns": false, "dsq": false, "gap_to_leader": "+1 LAP", "duration": null, "meeting_key": 1299, "session_key": 11412}
+]

@@ -1,0 +1,12 @@
+[
+  {"date": "2026-11-08T17:00:00.002000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 4007, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:00.202000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3996, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:01.562000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 4005, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:01.762000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3995, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:01.923000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3974, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:02.083000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3981, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:02.323000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3997, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:02.483000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3971, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:02.643000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 4021, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0},
+  {"date": "2026-11-08T17:00:02.963000+00:00", "session_key": 11412, "driver_number": 43, "rpm": 3989, "speed": 0, "n_gear": 0, "drs": null, "meeting_key": 1299, "brake": 0, "throttle": 0}
+]
