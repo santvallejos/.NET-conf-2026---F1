@@ -1,5 +1,8 @@
+using Microsoft.Extensions.Options;
+
 using PitWall.Jev;
 using PitWall.Jev.Guards;
+using PitWall.Jev.Real;
 using PitWall.Replay;
 using PitWall.Web.Components;
 using PitWall.Web.Components.Panels.Energy;
@@ -19,6 +22,7 @@ builder.AddServiceDefaults();
 builder.Services.AddPitWallStorage(builder.Configuration, builder.Environment);
 builder.Services.AddPitWallReplay(builder.Configuration);
 builder.Services.AddPitWallJev();
+builder.Services.AddPitWallJevReal(sp => sp.GetRequiredService<IOptions<PitWallOptions>>().Value.DefaultSessionKey);
 builder.Services.AddPitWallUi(builder.Configuration);
 builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddPitWallEnergy(builder.Configuration);
