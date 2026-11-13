@@ -1,0 +1,41 @@
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+}
+
+<section class="panel race-control">
+    <header class="panel-header">
+        <h2>Race Control</h2>
+        <span class="panel-meta num">@view.RaceControl.Count</span>
+    </header>
+
+    @if (view.RaceControl.Count == 0)
+    {
+        <p class="empty">Sin mensajes hasta este momento.</p>
+    }
+    else
+    {
+        <ol class="feed">
+            @foreach (var message in view.RaceControl)
+            {
+                <li class="message @RaceFormat.FlagClass(message.Flag)">
+                    <span class="meta num">
+                        @(message.LapNumber is { } lap ? $"V{lap}" : RaceFormat.Missing)
+                        <span class="time">@RaceFormat.TimeOfDay(message.Date)</span>
+                    </span>
+                    @if (!string.IsNullOrWhiteSpace(message.Flag))
+                    {
+                        <span class="flag-chip">@message.Flag</span>
+                    }
+                    else
+                    {
+                        <span class="category">@message.Category</span>
+                    }
+                    <span class="text">@message.Message</span>
+                </li>
+            }
+        </ol>
+    }
+</section>

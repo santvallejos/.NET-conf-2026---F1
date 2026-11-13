@@ -1,0 +1,70 @@
+.flag-bar {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    min-width: 0;
+}
+
+.race-info {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    white-space: nowrap;
+}
+
+.lap {
+    font-size: 1.6rem;
+    font-weight: 700;
+}
+
+.lap-total {
+    color: var(--pw-muted);
+    font-size: 1.1rem;
+}
+
+.clock {
+    font-size: 1.3rem;
+}
+
+.session {
+    color: var(--pw-muted);
+}
+
+.flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.flag {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 3px;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    opacity: 0.45;
+    white-space: nowrap;
+}
+
+.flag.active {
+    opacity: 1;
+    color: #0b0d10;
+    border-color: transparent;
+}
+
+.flag-green.active { background: var(--pw-flag-green); }
+.flag-yellow.active { background: var(--pw-flag-yellow); }
+.flag-double-yellow.active { background: var(--pw-flag-yellow); outline: 2px solid var(--pw-flag-yellow); outline-offset: 2px; }
+.flag-sc.active, .flag-vsc.active { background: var(--pw-flag-sc); }
+.flag-red.active { background: var(--pw-flag-red); color: #fff; }
+.flag-blue.active { background: var(--pw-flag-blue); color: #fff; }
+.flag-chequered.active {
+    background: repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / 12px 12px;
+    color: #fff;
+    text-shadow: 0 0 3px #000, 0 0 3px #000;
+}

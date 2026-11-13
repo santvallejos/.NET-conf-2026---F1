@@ -1,0 +1,97 @@
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+    var playback = view.Playback;
+    var loaded = playback.SessionKey is not null;
+    if (!view.Sessions.Any(session => session.SessionKey == _selectedSession))
+    {
+        _selectedSession = playback.SessionKey ?? view.Sessions.FirstOrDefault()?.SessionKey ?? 0;
+    }
+}
+
+<div class="controls" aria-label="Controles del replay">
+    <div class="group session">
+        <label for="pw-session">Sesión</label>
+        <select id="pw-session" @bind="_selectedSession" disabled="@(view.Sessions.Count == 0 || _busy)">
+            @if (view.Sessions.Count == 0)
+            {
+                <option value="0">Sin sesiones</option>
+            }
+            @foreach (var session in view.Sessions)
+            {
+                <option value="@session.SessionKey">@session.Label</option>
+            }
+        </select>
+        <button type="button" @onclick="LoadAsync" disabled="@(view.Sessions.Count == 0 || _busy)">Cargar</button>
+    </div>
+
+    <div class="group playback">
+        <button type="button" class="play" @onclick="TogglePlayAsync" disabled="@(!loaded)" title="@(playback.IsPlaying ? "Pausa" : "Play")">
+            @(playback.IsPlaying ? "❚❚ Pausa" : "▶ Play")
+        </button>
+        <span class="label">Velocidad</span>
+        @foreach (var speed in playback.Speeds)
+        {
+            <button type="button" class="speed @(speed == playback.Speed ? "active" : null)" @onclick="() => SetSpeedAsync(speed)" disabled="@(!loaded)">
+                x@(speed)
+            </button>
+        }
+    </div>
+
+    <div class="group jump">
+        <button type="button" @onclick="() => JumpAsync((view.State?.LeaderLap ?? 1) - 1)" disabled="@(!loaded)" title="Vuelta anterior">◀</button>
+        <label for="pw-lap">Vuelta</label>
+        <input id="pw-lap" type="number" class="num" min="1" max="@playback.LapCount" @bind="_targetLap" disabled="@(!loaded)" />
+        <button type="button" @onclick="() => JumpAsync(_targetLap)" disabled="@(!loaded)">Ir</button>
+        <button type="button" @onclick="() => JumpAsync((view.State?.LeaderLap ?? 0) + 1)" disabled="@(!loaded)" title="Vuelta siguiente">▶</button>
+    </div>
+
+    @if (view.Error is { } error)
+    {
+        <p class="error" role="alert">@error</p>
+    }
+</div>
+
+@code {
+    private int _selectedSession;
+    private int _targetLap = 1;
+    private bool _busy;
+
+    private async Task LoadAsync()
+    {
+        if (_selectedSession == 0)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Session.LoadSessionAsync(_selectedSession);
+            _targetLap = 1;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task TogglePlayAsync() => View.Playback.IsPlaying ? Session.PauseAsync() : Session.PlayAsync();
+
+    private Task SetSpeedAsync(int speed) => Session.SetSpeedAsync(speed);
+
+    // La vuelta se acota a la sesión: los botones ◀/▶ en los extremos no saltan fuera de rango.
+    private Task JumpAsync(int lap)
+    {
+        var lapCount = View.Playback.LapCount;
+        if (lapCount == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        _targetLap = Math.Clamp(lap, 1, lapCount);
+        return Session.JumpToLapAsync(_targetLap);
+    }
+}

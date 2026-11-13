@@ -1,0 +1,29 @@
+@* Grilla del pit wall para una pantalla: barra superior y columnas de paneles (docs/ui.md §3). *@
+
+<div class="pitwall">
+    <header class="top-bar">
+        @TopBar
+    </header>
+    <main class="columns">
+        <div class="column left">@Left</div>
+        @if (Center is not null)
+        {
+            <div class="column center">@Center</div>
+        }
+        <div class="column right">@Right</div>
+    </main>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public RenderFragment? TopBar { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment? Left { get; set; }
+
+    [Parameter]
+    public RenderFragment? Center { get; set; }
+
+    [Parameter, EditorRequired]
+    public RenderFragment? Right { get; set; }
+}

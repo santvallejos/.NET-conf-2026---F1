@@ -1,18 +1,146 @@
+/* Tema oscuro del pit wall: alto contraste, legible en proyector, números monoespaciados (docs/ui.md §1). */
+:root {
+    color-scheme: dark;
+    --pw-bg: #0b0d10;
+    --pw-surface: #12161b;
+    --pw-panel: #161b21;
+    --pw-border: #2a313a;
+    --pw-border-soft: #1e242b;
+    --pw-text: #e8ecf1;
+    --pw-muted: #8a95a3;
+    --pw-accent: #27c0ff;
+    --pw-flag-green: #1fd15a;
+    --pw-flag-yellow: #ffd21f;
+    --pw-flag-red: #ff3b3b;
+    --pw-flag-blue: #2f7dff;
+    --pw-flag-sc: #ffa31a;
+    --pw-tyre-soft: #ff3b3b;
+    --pw-tyre-medium: #ffd21f;
+    --pw-tyre-hard: #f2f2f2;
+    --pw-tyre-intermediate: #2fd15a;
+    --pw-tyre-wet: #2f7dff;
+    --pw-temp-track: #ff8a3d;
+    --pw-temp-air: #6ec8ff;
+    --pw-font: "Segoe UI", "Inter", system-ui, sans-serif;
+    --pw-mono: "Cascadia Mono", "JetBrains Mono", "Consolas", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    background: var(--pw-bg);
+    color: var(--pw-text);
+    font-family: var(--pw-font);
+    font-size: 16px;
+    line-height: 1.35;
+}
+
 h1:focus {
     outline: none;
 }
 
-.valid.modified:not([type=checkbox]) {
-    outline: 1px solid #26b050;
+.num {
+    font-family: var(--pw-mono);
+    font-variant-numeric: tabular-nums;
 }
 
-.invalid {
-    outline: 1px solid #e50000;
+button,
+select,
+input {
+    padding: 0.3rem 0.6rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 3px;
+    background: var(--pw-panel);
+    color: var(--pw-text);
+    font: inherit;
+    font-size: 0.95rem;
 }
 
-.validation-message {
-    color: #e50000;
+button {
+    cursor: pointer;
 }
+
+button:hover:not(:disabled) {
+    border-color: var(--pw-accent);
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+:focus-visible {
+    outline: 2px solid var(--pw-accent);
+    outline-offset: 1px;
+}
+
+/* Paneles */
+.panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 4px;
+    background: var(--pw-panel);
+}
+
+.panel.race-control {
+    flex: 1;
+}
+
+.panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+}
+
+.panel-header h2 {
+    margin: 0;
+    color: var(--pw-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.panel-meta {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.empty {
+    margin: 0.5rem 0;
+    color: var(--pw-muted);
+}
+
+/* Compuestos: SOFT rojo, MEDIUM amarillo, HARD blanco, INTERMEDIATE verde, WET azul */
+.tyre {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 3px solid currentColor;
+    border-radius: 50%;
+    background: #0b0d10;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.tyre-soft { color: var(--pw-tyre-soft); }
+.tyre-medium { color: var(--pw-tyre-medium); }
+.tyre-hard { color: var(--pw-tyre-hard); }
+.tyre-intermediate { color: var(--pw-tyre-intermediate); }
+.tyre-wet { color: var(--pw-tyre-wet); }
 
 .blazor-error-boundary {
     background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, #b32121;
@@ -23,16 +151,3 @@ h1:focus {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
-
-.darker-border-checkbox.form-check-input {
-    border-color: #929292;
-}
-
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
-}
-
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
-}

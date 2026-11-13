@@ -1,0 +1,82 @@
+.tower-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--pw-border);
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+td {
+    padding: 0.28rem 0.5rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    white-space: nowrap;
+}
+
+th.num,
+td.num {
+    text-align: right;
+}
+
+.pos {
+    width: 2.5rem;
+    font-weight: 700;
+}
+
+.driver {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.team-bar {
+    width: 4px;
+    height: 1.1rem;
+    border-radius: 2px;
+    background: var(--team);
+}
+
+.acronym {
+    min-width: 2.8rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.car-number {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.badge.pit {
+    padding: 0 0.35rem;
+    border-radius: 3px;
+    background: var(--pw-text);
+    color: #0b0d10;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.tyre-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.age {
+    min-width: 1.5rem;
+    text-align: right;
+}
+
+tr.focus {
+    background: color-mix(in srgb, var(--team) 22%, transparent);
+    box-shadow: inset 4px 0 0 var(--team);
+}
+
+tr.focus .acronym {
+    color: #fff;
+}

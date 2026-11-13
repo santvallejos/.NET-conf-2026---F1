@@ -1,0 +1,68 @@
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+}
+
+<section class="panel tower">
+    <header class="panel-header">
+        <h2>Torre de tiempos</h2>
+        @if (view.State is { } header)
+        {
+            <span class="panel-meta num">@header.Cars.Count autos</span>
+        }
+    </header>
+
+    @if (view.State is not { } state)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else
+    {
+        <table class="tower-table">
+            <thead>
+                <tr>
+                    <th class="num">P</th>
+                    <th>Piloto</th>
+                    <th class="num">Líder</th>
+                    <th class="num">Int.</th>
+                    <th>Neum.</th>
+                    <th class="num" title="Paradas">Par.</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var car in state.Cars)
+                {
+                    var driver = view.Drivers.GetValueOrDefault(car.DriverNumber);
+                    var leader = car.Position == 1;
+                    <tr @key="car.DriverNumber"
+                        class="@(car.DriverNumber == view.FocusDriver ? "focus" : null)"
+                        style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")">
+                        <td class="num pos">@car.Position</td>
+                        <td title="@driver?.FullName">
+                            <div class="driver">
+                                <span class="team-bar"></span>
+                                <span class="acronym">@(driver?.Acronym ?? $"#{car.DriverNumber}")</span>
+                                <span class="car-number num">@car.DriverNumber</span>
+                                @if (car.InPit)
+                                {
+                                    <span class="badge pit">PIT</span>
+                                }
+                            </div>
+                        </td>
+                        <td class="num">@(leader ? "Líder" : RaceFormat.Gap(car.GapToLeader))</td>
+                        <td class="num">@(leader ? RaceFormat.Missing : RaceFormat.Gap(car.Interval))</td>
+                        <td>
+                            <div class="tyre-cell">
+                                <span class="tyre @RaceFormat.CompoundClass(car.Compound)">@RaceFormat.CompoundLetter(car.Compound)</span>
+                                <span class="num age">@car.TyreAge</span>
+                            </div>
+                        </td>
+                        <td class="num">@view.PitStops.GetValueOrDefault(car.DriverNumber)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>

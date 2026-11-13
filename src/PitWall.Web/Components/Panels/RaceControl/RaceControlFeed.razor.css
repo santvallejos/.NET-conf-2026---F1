@@ -1,0 +1,64 @@
+.race-control {
+    min-height: 0;
+}
+
+.feed {
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.message {
+    display: grid;
+    grid-template-columns: 6.5rem 7.5rem 1fr;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.35rem 0.25rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    border-left: 3px solid transparent;
+}
+
+.meta {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.time {
+    margin-left: 0.35rem;
+}
+
+.flag-chip,
+.category {
+    justify-self: start;
+    padding: 0 0.4rem;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.category {
+    border: 1px solid var(--pw-border);
+    color: var(--pw-muted);
+}
+
+.flag-chip {
+    background: var(--pw-border);
+    color: var(--pw-text);
+}
+
+.flag-green { border-left-color: var(--pw-flag-green); }
+.flag-green .flag-chip { background: var(--pw-flag-green); color: #0b0d10; }
+.flag-yellow,
+.flag-double-yellow { border-left-color: var(--pw-flag-yellow); }
+.flag-yellow .flag-chip,
+.flag-double-yellow .flag-chip { background: var(--pw-flag-yellow); color: #0b0d10; }
+.flag-red { border-left-color: var(--pw-flag-red); }
+.flag-red .flag-chip { background: var(--pw-flag-red); color: #fff; }
+.flag-blue { border-left-color: var(--pw-flag-blue); }
+.flag-blue .flag-chip { background: var(--pw-flag-blue); color: #fff; }
+.flag-chequered .flag-chip { background: #fff; color: #0b0d10; }
+.flag-clear .flag-chip { background: transparent; border: 1px solid var(--pw-flag-green); color: var(--pw-flag-green); }

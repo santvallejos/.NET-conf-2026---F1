@@ -1,0 +1,81 @@
+@using System.Globalization
+@using System.Text
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Services
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+    var history = view.WeatherHistory;
+    var latest = history.Count > 0 ? history[^1] : null;
+}
+
+<section class="panel weather">
+    <header class="panel-header">
+        <h2>Clima</h2>
+        @if (latest is not null)
+        {
+            <span class="panel-meta num">@RaceFormat.TimeOfDay(latest.Date)</span>
+        }
+    </header>
+
+    @if (view.State is not { } state)
+    {
+        <p class="empty">Sin datos de clima.</p>
+    }
+    else
+    {
+        var weather = state.Weather;
+        <dl class="readings">
+            <div><dt>Pista</dt><dd class="num track">@RaceFormat.Number(weather.TrackTemp) °C</dd></div>
+            <div><dt>Aire</dt><dd class="num air">@RaceFormat.Number(weather.AirTemp) °C</dd></div>
+            <div><dt>Humedad</dt><dd class="num">@RaceFormat.Number(weather.Humidity, "0") %</dd></div>
+            <div><dt>Lluvia</dt><dd class="@(weather.Rainfall ? "rain" : null)">@(weather.Rainfall ? "SÍ" : "NO")</dd></div>
+            <div>
+                <dt>Viento</dt>
+                <dd class="num">
+                    @(latest is null ? RaceFormat.Missing : $"{RaceFormat.Number(latest.WindSpeed)} m/s {latest.WindDirection}°")
+                </dd>
+            </div>
+        </dl>
+
+        @if (history.Count > 1)
+        {
+            var (trackPoints, airPoints) = BuildSeries(history);
+            <svg class="series" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="Temperatura de pista y aire">
+                <polyline class="track" points="@trackPoints" />
+                <polyline class="air" points="@airPoints" />
+            </svg>
+        }
+    }
+</section>
+
+@code {
+    private const double Width = 300;
+    private const double Height = 60;
+
+    // Escala común a pista y aire para que las dos curvas sean comparables.
+    private static (string Track, string Air) BuildSeries(IReadOnlyList<WeatherReading> history)
+    {
+        var min = history.Min(reading => Math.Min(reading.TrackTemp, reading.AirTemp));
+        var max = history.Max(reading => Math.Max(reading.TrackTemp, reading.AirTemp));
+        var range = Math.Max(max - min, 1);
+        var start = history[0].Date;
+        var span = Math.Max((history[^1].Date - start).TotalSeconds, 1);
+
+        string Points(Func<WeatherReading, double> value)
+        {
+            var builder = new StringBuilder();
+            foreach (var reading in history)
+            {
+                var x = (reading.Date - start).TotalSeconds / span * Width;
+                var y = Height - ((value(reading) - min) / range * (Height - 4)) - 2;
+                builder.Append(CultureInfo.InvariantCulture, $"{x:0.#},{y:0.#} ");
+            }
+
+            return builder.ToString();
+        }
+
+        return (Points(reading => reading.TrackTemp), Points(reading => reading.AirTemp));
+    }
+}

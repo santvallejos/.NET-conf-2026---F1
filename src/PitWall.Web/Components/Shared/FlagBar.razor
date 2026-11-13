@@ -1,0 +1,36 @@
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+    var flags = view.Flags;
+    var playback = view.Playback;
+}
+
+<div class="flag-bar" role="status" aria-label="Estado de banderas">
+    <div class="race-info">
+        <span class="lap num">V @(view.State?.LeaderLap ?? 0)<span class="lap-total">/@playback.LapCount</span></span>
+        <span class="clock num" title="Tiempo de carrera">@RaceFormat.Elapsed(view.Elapsed)</span>
+        <span class="session">@(view.CurrentSession?.Circuit ?? "Sin sesión")</span>
+    </div>
+    <ul class="flags">
+        <li class="flag flag-green @(flags.Green ? "active" : null)">VERDE</li>
+        <li class="flag flag-yellow @(flags.Yellow ? "active" : null)">
+            AMARILLA@(flags.YellowSectors.Count > 0 ? $" S{string.Join(",", flags.YellowSectors)}" : null)
+        </li>
+        <li class="flag flag-double-yellow @(flags.DoubleYellow ? "active" : null)">
+            DOBLE AMARILLA@(flags.DoubleYellowSectors.Count > 0 ? $" S{string.Join(",", flags.DoubleYellowSectors)}" : null)
+        </li>
+        <li class="flag flag-sc @(flags.SafetyCar ? "active" : null)">SC</li>
+        <li class="flag flag-vsc @(flags.VirtualSafetyCar ? "active" : null)">VSC</li>
+        <li class="flag flag-red @(flags.Red ? "active" : null)">ROJA</li>
+        <li class="flag flag-blue @(flags.Blue ? "active" : null)">
+            AZUL@(flags.Blue ? $" {string.Join(" ", flags.BlueFlagDrivers.Select(DriverLabel))}" : null)
+        </li>
+        <li class="flag flag-chequered @(flags.Chequered ? "active" : null)">FINAL</li>
+    </ul>
+</div>
+
+@code {
+    private string DriverLabel(int driverNumber) =>
+        View.Drivers.TryGetValue(driverNumber, out var driver) ? driver.Acronym : $"#{driverNumber}";
+}
