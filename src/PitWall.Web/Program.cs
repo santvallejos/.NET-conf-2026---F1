@@ -2,6 +2,7 @@ using PitWall.Jev;
 using PitWall.Jev.Guards;
 using PitWall.Replay;
 using PitWall.Web.Components;
+using PitWall.Web.Components.Panels.Tyres;
 using PitWall.Web.Hubs;
 using PitWall.Web.Services;
 using PitWall.Web.Storage;
@@ -14,6 +15,7 @@ builder.Services.AddPitWallStorage(builder.Configuration, builder.Environment);
 builder.Services.AddPitWallReplay(builder.Configuration);
 builder.Services.AddPitWallJev();
 builder.Services.AddPitWallUi(builder.Configuration);
+builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics.AddMeter(JevMetrics.MeterName));
 

@@ -1,0 +1,9 @@
+@page "/panel/tyres"
+@using PitWall.Web.Components.Panels.Tyres
+
+<PageTitle>PitWall · Neumáticos</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <TyrePanel @rendermode="InteractiveServer" />
+</div>

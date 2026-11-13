@@ -1,0 +1,183 @@
+@using System.Globalization
+@using System.Text
+@using PitWall.Strategy.Degradation
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+@inject TyreDegradationService Tyres
+
+@{
+    var view = View;
+    var state = view.State;
+    var loaded = state is not null && Tyres.IsLoaded(state.SessionKey);
+    var data = loaded ? Tyres.Get(view) : null;
+    var fit = data?.Fit;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+}
+
+<section class="panel tyres">
+    <header class="panel-header">
+        <h2>Neumáticos</h2>
+        <span class="panel-meta">
+            @(driver?.Acronym ?? $"#{view.FocusDriver}")
+            @if (fit?.Tyre.IsFallback == true)
+            {
+                <span class="tag" title="Menos vueltas limpias que el mínimo: media del compuesto de @fit.FallbackDrivers pilotos">MEDIA PARRILLA</span>
+            }
+        </span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (!loaded)
+    {
+        <p class="empty">Cargando vueltas…</p>
+    }
+    else if (data is null)
+    {
+        <p class="empty">Sin vueltas del piloto foco.</p>
+    }
+    else
+    {
+        <dl class="readings">
+            <div>
+                <dt>Compuesto</dt>
+                <dd><span class="@RaceFormat.CompoundClass(data.Compound)">@RaceFormat.CompoundLetter(data.Compound)</span> <span class="num">@data.TyreAge v</span></dd>
+            </div>
+            <div><dt>Deg</dt><dd class="num">@(fit is null ? RaceFormat.Missing : $"{RaceFormat.Number(fit.Tyre.DegPerLap, "0.000")} s/v")</dd></div>
+            <div>
+                <dt>Vida restante</dt>
+                <dd class="num @(fit is not null && fit.Tyre.LapsToCliff <= 3 ? "cliff-near" : null)">@LifeLabel(fit)</dd>
+            </div>
+            <div><dt>Cliff</dt><dd class="num">@(data.CliffTyreAge == TyreDegradationModel.NoCliff ? RaceFormat.Missing : $"{data.CliffTyreAge} v")</dd></div>
+            <div><dt>σ</dt><dd class="num">@(fit is null ? RaceFormat.Missing : $"{RaceFormat.Number(fit.Tyre.ResidualSigma, "0.00")} s")</dd></div>
+            <div><dt>Limpias</dt><dd class="num">@(fit is null ? RaceFormat.Missing : $"{fit.CleanLaps}/{fit.Points.Count}")</dd></div>
+        </dl>
+
+        <div class="stints" role="img" aria-label="Stints">
+            @foreach (var stint in data.Stints)
+            {
+                <span @key="stint.StintNumber"
+                      class="stint @RaceFormat.CompoundClass(stint.Compound)"
+                      style="@StintStyle(stint, data.LapCount)"
+                      title="Stint @stint.StintNumber · vueltas @stint.LapStart–@stint.LapEnd · edad inicial @stint.TyreAgeAtStart">
+                    @RaceFormat.CompoundLetter(stint.Compound)<span class="num">@stint.Laps</span>
+                </span>
+            }
+        </div>
+
+        @if (fit is null)
+        {
+            <p class="empty">Sin vueltas limpias suficientes con este compuesto en la parrilla.</p>
+        }
+        else
+        {
+            var curve = BuildCurve(data, fit);
+            <svg class="curve" viewBox="0 0 @F(Width) @F(Height)" role="img" aria-label="Curva de degradación">
+                <line class="cliff" x1="@F(Pad)" y1="@F(curve.CliffY)" x2="@F(Width - Pad)" y2="@F(curve.CliffY)" />
+                @if (curve.CliffX is { } cliffX)
+                {
+                    <g>
+                        <line class="cliff" x1="@F(cliffX)" y1="@F(Pad)" x2="@F(cliffX)" y2="@F(Height - Pad)" />
+                        <text class="label" x="@F(cliffX + 2)" y="@F(Pad + 8)">cliff</text>
+                    </g>
+                }
+                <line class="now" x1="@F(curve.NowX)" y1="@F(Pad)" x2="@F(curve.NowX)" y2="@F(Height - Pad)" />
+                <polyline class="model" points="@curve.Model" />
+                @foreach (var point in curve.Points)
+                {
+                    <circle class="@(point.Clean ? "lap" : "lap excluded")" cx="@F(point.X)" cy="@F(point.Y)" r="2.5">
+                        <title>@point.Title</title>
+                    </circle>
+                }
+                <text class="label" x="@F(Pad)" y="@F(Height - 1)">edad 0</text>
+                <text class="label end" x="@F(Width - Pad)" y="@F(Height - 1)">@curve.MaxAge v</text>
+            </svg>
+        }
+    }
+</section>
+
+@code {
+    private const double Width = 320;
+    private const double Height = 150;
+    private const double Pad = 8;
+
+    private int? _loadingSession;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // La sesión cambia desde los controles: las vueltas se cargan la primera vez que el panel la ve.
+        if (View.State is not { } state || Tyres.IsLoaded(state.SessionKey) || _loadingSession == state.SessionKey)
+        {
+            return;
+        }
+
+        _loadingSession = state.SessionKey;
+        await Tyres.LoadAsync(state.SessionKey);
+        _loadingSession = null;
+        StateHasChanged();
+    }
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+
+    private static string LifeLabel(DegradationFit? fit) => fit?.Tyre.LapsToCliff switch
+    {
+        null => RaceFormat.Missing,
+        TyreDegradationModel.NoCliff => "sin cliff",
+        var laps => $"{laps} v",
+    };
+
+    private static string StintStyle(TyreStint stint, int lapCount) =>
+        string.Create(CultureInfo.InvariantCulture, $"width: {stint.Laps * 100.0 / Math.Max(lapCount, 1):0.##}%");
+
+    // Eje x: edad del neumático; eje y: tiempo corregido por combustible (más lento arriba). La escala sale de las
+    // vueltas limpias, el modelo y el umbral de cliff; las excluidas fuera de esa escala no se dibujan.
+    private static Curve BuildCurve(TyrePanelData data, DegradationFit fit)
+    {
+        var tyre = fit.Tyre;
+        var timed = fit.Points.Where(point => point.FuelCorrectedLapTime is not null).ToList();
+        // El cliff solo se marca si la goma puede llegar a esa edad antes del final de la carrera.
+        var raceEndAge = data.TyreAge + Math.Max(0, data.LapCount - data.Lap);
+        int? cliffAge = data.CliffTyreAge <= raceEndAge ? data.CliffTyreAge : null;
+        var maxAge = new[] { data.TyreAge, cliffAge ?? 0 }.Concat(timed.Select(point => point.TyreAge)).Max() + 1;
+        var cliffTime = tyre.BaseLapTime + data.CliffDeltaSeconds;
+        double[] range =
+        [
+            tyre.BaseLapTime,
+            cliffTime,
+            tyre.BaseLapTime + (tyre.DegPerLap * maxAge),
+            .. timed.Where(point => point.IsClean).Select(point => point.FuelCorrectedLapTime!.Value),
+        ];
+        var min = range.Min() - 0.2;
+        var max = range.Max() + 0.2;
+
+        double X(double age) => Pad + (age / maxAge * (Width - (2 * Pad)));
+        double Y(double time) => Height - Pad - ((time - min) / (max - min) * (Height - (2 * Pad)));
+
+        var points = timed
+            .Where(point => point.FuelCorrectedLapTime >= min && point.FuelCorrectedLapTime <= max)
+            .Select(point => new CurvePoint(
+                X(point.TyreAge),
+                Y(point.FuelCorrectedLapTime!.Value),
+                point.IsClean,
+                string.Create(CultureInfo.InvariantCulture, $"V{point.LapNumber} · edad {point.TyreAge} · {point.LapTime:0.000} s · corregido {point.FuelCorrectedLapTime:0.000} s{(point.IsClean ? string.Empty : $" · {point.Exclusion}")}")))
+            .ToList();
+
+        var model = new StringBuilder();
+        model.Append(CultureInfo.InvariantCulture, $"{X(0):0.#},{Y(tyre.BaseLapTime):0.#} ");
+        model.Append(CultureInfo.InvariantCulture, $"{X(maxAge):0.#},{Y(tyre.BaseLapTime + (tyre.DegPerLap * maxAge)):0.#}");
+
+        return new Curve(
+            model.ToString(),
+            points,
+            Y(cliffTime),
+            cliffAge is { } age ? X(age) : null,
+            X(data.TyreAge),
+            maxAge);
+    }
+
+    private sealed record Curve(string Model, IReadOnlyList<CurvePoint> Points, double CliffY, double? CliffX, double NowX, int MaxAge);
+
+    private sealed record CurvePoint(double X, double Y, bool Clean, string Title);
+}
