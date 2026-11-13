@@ -1,0 +1,175 @@
+@using System.Globalization
+@using System.Text
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Services
+@inherits PitWallPanelBase
+
+@* Clima ampliado (docs/ui.md §2 panel 6, vista Condiciones): por variable, valor actual, delta contra la primera
+   lectura de la sesión y su serie temporal hasta el instante del replay. El modo compacto es WeatherWidget. *@
+@{
+    var history = View.WeatherHistory;
+    var first = history.Count > 0 ? history[0] : null;
+    var latest = history.Count > 0 ? history[^1] : null;
+}
+
+<section class="panel weather-detail">
+    <header class="panel-header">
+        <h2>Clima</h2>
+        @if (first is not null && latest is not null)
+        {
+            <span class="panel-meta num" title="Desde la primera lectura de la sesión hasta el instante del replay">
+                @RaceFormat.TimeOfDay(first.Date) → @RaceFormat.TimeOfDay(latest.Date) · @history.Count lecturas
+            </span>
+        }
+    </header>
+
+    @if (first is null || latest is null)
+    {
+        <p class="empty">Sin datos de clima.</p>
+    }
+    else
+    {
+        var rainSince = RainSince(history);
+        <div class="variables">
+            @* OpenF1 manda alguna lectura con pista 0 °C (falla del sensor): se descarta solo en esa serie. *@
+            @Variable("Pista", "track", "°C", "0.0", [.. history.Where(reading => reading.TrackTemp > 0)], reading => reading.TrackTemp)
+            @Variable("Aire", "air", "°C", "0.0", history, reading => reading.AirTemp)
+            @Variable("Humedad", "humidity", "%", "0", history, reading => reading.Humidity)
+            @Variable("Viento", "wind", "m/s", "0.0", history, reading => reading.WindSpeed)
+            @Variable("Presión", "pressure", "hPa", "0.0", history, reading => reading.Pressure)
+
+            <article class="variable rain-card @(latest.Rainfall ? "raining" : null)">
+                <header>
+                    <span class="name">Lluvia</span>
+                    <span class="delta num">@(first.Rainfall ? "llovía al inicio" : "seca al inicio")</span>
+                </header>
+                <div class="value">
+                    @(latest.Rainfall ? "SÍ" : "NO")
+                    @if (rainSince is { } since)
+                    {
+                        <span class="unit num">desde @RaceFormat.TimeOfDay(since)</span>
+                    }
+                </div>
+                @* Una barra por lectura con lluvia: muestra cuándo llovió a lo largo de la sesión. *@
+                <svg class="series rain-series" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="Lluvia en la sesión">
+                    <line class="baseline" x1="0" y1="@(Height - 1)" x2="@Width" y2="@(Height - 1)" />
+                    @foreach (var (x, width) in RainBars(history))
+                    {
+                        <rect x="@F(x)" y="4" width="@F(width)" height="@(Height - 5)" />
+                    }
+                </svg>
+            </article>
+        </div>
+        <p class="wind-direction num">
+            <span class="arrow" style="transform: rotate(@(latest.WindDirection)deg)" aria-hidden="true">↓</span>
+            Viento desde @latest.WindDirection° (@Compass(latest.WindDirection)) · al inicio @first.WindDirection° (@Compass(first.WindDirection))
+        </p>
+    }
+</section>
+
+@code {
+    private const double Width = 300;
+    private const double Height = 70;
+
+    private static readonly string[] CompassPoints = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
+
+    // Tarjeta de una variable numérica: valor actual, delta vs primera lectura, min/max y serie temporal.
+    private static RenderFragment Variable(
+        string name,
+        string kind,
+        string unit,
+        string format,
+        IReadOnlyList<WeatherReading> history,
+        Func<WeatherReading, double> value) => __builder =>
+    {
+        if (history.Count == 0)
+        {
+            return;
+        }
+
+        var current = value(history[^1]);
+        var delta = current - value(history[0]);
+        var min = history.Min(value);
+        var max = history.Max(value);
+        <article class="variable @kind">
+            <header>
+                <span class="name">@name</span>
+                <span class="delta num @(delta > 0 ? "up" : delta < 0 ? "down" : null)" title="Diferencia contra la primera lectura de la sesión">
+                    @Signed(delta, format) vs inicio
+                </span>
+            </header>
+            <div class="value num">@RaceFormat.Number(current, format) <span class="unit">@unit</span></div>
+            <svg class="series" viewBox="0 0 @Width @Height" preserveAspectRatio="none" role="img" aria-label="@name en la sesión">
+                @if (history.Count > 1)
+                {
+                    var points = Points(history, value, min, max);
+                    <polygon class="area" points="0,@Height @points @Width,@Height" />
+                    <polyline class="line" points="@points" />
+                }
+            </svg>
+            <div class="range num">
+                <span>mín @RaceFormat.Number(min, format)</span>
+                <span>máx @RaceFormat.Number(max, format)</span>
+            </div>
+        </article>
+    };
+
+    private static string Points(IReadOnlyList<WeatherReading> history, Func<WeatherReading, double> value, double min, double max)
+    {
+        var range = Math.Max(max - min, 0.001);
+        var start = history[0].Date;
+        var span = Math.Max((history[^1].Date - start).TotalSeconds, 1);
+        var builder = new StringBuilder();
+        foreach (var reading in history)
+        {
+            var x = (reading.Date - start).TotalSeconds / span * Width;
+            // Margen arriba y abajo para que el trazo no se corte en los extremos.
+            var y = Height - 4 - ((value(reading) - min) / range * (Height - 8));
+            builder.Append(CultureInfo.InvariantCulture, $"{x:0.#},{y:0.#} ");
+        }
+
+        return builder.ToString();
+    }
+
+    // Cada lectura con lluvia ocupa desde su instante hasta la lectura siguiente.
+    private static IEnumerable<(double X, double Width)> RainBars(IReadOnlyList<WeatherReading> history)
+    {
+        var start = history[0].Date;
+        var span = Math.Max((history[^1].Date - start).TotalSeconds, 1);
+        for (var i = 0; i < history.Count; i++)
+        {
+            if (!history[i].Rainfall)
+            {
+                continue;
+            }
+
+            var from = (history[i].Date - start).TotalSeconds / span * Width;
+            var to = i + 1 < history.Count ? (history[i + 1].Date - start).TotalSeconds / span * Width : Width;
+            yield return (from, Math.Max(to - from, 1.5));
+        }
+    }
+
+    // Inicio de la racha de lluvia actual; null si no llueve.
+    private static DateTimeOffset? RainSince(IReadOnlyList<WeatherReading> history)
+    {
+        if (!history[^1].Rainfall)
+        {
+            return null;
+        }
+
+        var index = history.Count - 1;
+        while (index > 0 && history[index - 1].Rainfall)
+        {
+            index--;
+        }
+
+        return history[index].Date;
+    }
+
+    private static string Signed(double value, string format) =>
+        (value > 0 ? "+" : value < 0 ? "−" : "±") + RaceFormat.Number(Math.Abs(value), format);
+
+    private static string Compass(int degrees) => CompassPoints[(int)Math.Round(((degrees % 360) + 360) % 360 / 45.0) % 8];
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+}

@@ -32,12 +32,4 @@
 | **OpenF1** | API pública con datos de F1 (históricos gratis) |
 | **`session_key`** | Identificador de sesión en OpenF1 (carrera Brasil 2026 = 11412) |
 | **Replay** | Reproducción de la carrera real con reloj virtual controlable |
-| **Monte Carlo** | Simular el resto de carrera miles de veces con variables aleatorias para obtener probabilidades |
-| **Jev** | Clasificador de IA de TypeSafe ("System One"): devuelve opciones tipadas con probabilidades |
-| **System One / Two** | Decisión rápida e intuitiva (Jev) vs deliberada y calculada (Monte Carlo) |
-| **Triage** | Clasificar si un evento requiere acción (`NONE`/`MONITOR`/`ACT_NOW`) |
-| **`state`** | JSON compacto con la "foto" de la vuelta que se envía a Jev |
-| **Escenario** | Conjunto de eventos hipotéticos inyectados sobre una sesión |
-| **HIPOTÉTICO** | Etiqueta de todo lo producido en un escenario inyectado |
-| **ESTIMADO** | Etiqueta de valores no medidos (energía) |
-| **Aspire** | Stack .NET para orquestar apps distribuidas con dashboard de observabilidad |
+| **ESTIMADO** | Etiqueta de valores no medidos (energía, llamada a boxes) |

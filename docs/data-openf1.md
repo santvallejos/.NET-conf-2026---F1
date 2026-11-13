@@ -21,12 +21,12 @@ Rate limit: no documentado. Ingesta con pausa entre requests (default 500 ms) y 
 | `drivers` | `session_key` | 22 | `driver_number`, `full_name`, `team_name`, `team_colour` | catálogo |
 | `laps` | `session_key` | 1.437 | `lap_number`, `lap_duration`, `duration_sector_1/2/3`, `i1_speed`, `i2_speed`, `is_pit_out_lap`, `date_start` | degradación, cierre de vuelta |
 | `stints` | `session_key` | 80 | `stint_number`, `lap_start`, `lap_end`, `compound`, `tyre_age_at_start` | neumáticos, decisión real |
-| `pit` | `session_key` | 58 | `lap_number`, `pit_duration`, `lane_duration`, `stop_duration` | pit loss, decisión real |
-| `race_control` | `session_key` | 212 | `date`, `category`, `flag`, `scope`, `message`, `lap_number` | banderas, triage Jev |
+| `pit` | `session_key` | 58 | `lap_number`, `pit_duration`, `lane_duration`, `stop_duration` | pit loss |
+| `race_control` | `session_key` | 212 | `date`, `category`, `flag`, `scope`, `message`, `lap_number` | banderas, `OVERTAKE DISABLED` |
 | `weather` | `session_key` | 160 (1/min) | `rainfall`, `track_temperature`, `air_temperature`, `humidity`, `wind_speed`, `wind_direction`, `pressure` | clima |
 | `intervals` | `session_key` | 29.368 | `gap_to_leader`, `interval` | torre de tiempos |
 | `position` | `session_key` | 576 | `position`, `date` | torre de tiempos |
-| `overtakes` | `session_key` | 297 | `overtaking_driver_number`, `overtaken_driver_number`, `position` | prob. de adelantamiento |
+| `overtakes` | `session_key` | 297 | `overtaking_driver_number`, `overtaken_driver_number`, `position` | se ingiere; hoy sin uso en la estrategia |
 | `session_result` | `session_key` | 22 | `position`, `number_of_laps`, `dnf`, `dns`, `dsq`, `gap_to_leader` | validación |
 | `team_radio` | `session_key` | 30 | `date`, `driver_number`, `recording_url` | radio (mp3) |
 | `starting_grid` | **`session_key=11408`** | 22 | `position`, `driver_number`, `lap_duration` | grilla (404 con key de carrera) |
@@ -78,12 +78,6 @@ StartingGrid      (SessionKey, DriverNumber, Position, LapDuration?)
 TeamRadio         (SessionKey, DriverNumber, Date, RecordingUrl, LocalPath)
 CarData           (SessionKey, DriverNumber, Date, Speed, Rpm, Gear, Throttle, Brake)        índice (SessionKey, DriverNumber, Date)
 Location          (SessionKey, DriverNumber, Date, X, Y, Z)                                   índice (SessionKey, DriverNumber, Date)
-
--- Generadas por la app
-Scenario          (Id PK, SessionKey, Name, CreatedAt)
-InjectedEvent     (Id PK, ScenarioId, Lap, Type, Params JSON, CreatedAt)
-JevDecisionLog    (Id PK, SessionKey, ScenarioId?, DriverNumber, Lap, Kind, StateHash, RequestJson, ResponseJson, LatencyMs, Tokens, CostUsd, CreatedAt)
-JevCache          (StateHash PK, Kind, ResponseJson, CreatedAt)
 ```
 
 `Compound` se guarda como texto (`SOFT`, `MEDIUM`, `HARD`, `INTERMEDIATE`, `WET`).

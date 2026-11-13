@@ -14,7 +14,7 @@ partial class PitWallDbContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261113025521_InitialCreate";
+    public override string LastMigrationId => "20261118130000_RemoveScenarios";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
@@ -117,37 +117,6 @@ partial class PitWallDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("IngestedSession");
             });
 
-        modelBuilder.Entity("PitWall.Data.Entities.InjectedEvent", b =>
-            {
-                b.Property<int>("Id")
-                    .ValueGeneratedOnAdd()
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("CreatedAt")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("Lap")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("Params")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("ScenarioId")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("Type")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.HasKey("Id");
-
-                b.HasIndex("ScenarioId");
-
-                b.ToTable("InjectedEvent");
-            });
-
         modelBuilder.Entity("PitWall.Data.Entities.IntervalSample", b =>
             {
                 b.Property<int>("SessionKey")
@@ -168,82 +137,6 @@ partial class PitWallDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("SessionKey", "DriverNumber", "Date");
 
                 b.ToTable("Interval");
-            });
-
-        modelBuilder.Entity("PitWall.Data.Entities.JevCache", b =>
-            {
-                b.Property<string>("StateHash")
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("CreatedAt")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("Kind")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("ResponseJson")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.HasKey("StateHash");
-
-                b.ToTable("JevCache");
-            });
-
-        modelBuilder.Entity("PitWall.Data.Entities.JevDecisionLog", b =>
-            {
-                b.Property<int>("Id")
-                    .ValueGeneratedOnAdd()
-                    .HasColumnType("INTEGER");
-
-                b.Property<double>("CostUsd")
-                    .HasColumnType("REAL");
-
-                b.Property<string>("CreatedAt")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("DriverNumber")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("Kind")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("Lap")
-                    .HasColumnType("INTEGER");
-
-                b.Property<int>("LatencyMs")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("RequestJson")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("ResponseJson")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int?>("ScenarioId")
-                    .HasColumnType("INTEGER");
-
-                b.Property<int>("SessionKey")
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("StateHash")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("Tokens")
-                    .HasColumnType("INTEGER");
-
-                b.HasKey("Id");
-
-                b.HasIndex("ScenarioId");
-
-                b.ToTable("JevDecisionLog");
             });
 
         modelBuilder.Entity("PitWall.Data.Entities.Lap", b =>
@@ -419,28 +312,6 @@ partial class PitWallDbContextModelSnapshot : ModelSnapshot
                 b.ToTable("RaceControl");
             });
 
-        modelBuilder.Entity("PitWall.Data.Entities.Scenario", b =>
-            {
-                b.Property<int>("Id")
-                    .ValueGeneratedOnAdd()
-                    .HasColumnType("INTEGER");
-
-                b.Property<string>("CreatedAt")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<string>("Name")
-                    .IsRequired()
-                    .HasColumnType("TEXT");
-
-                b.Property<int>("SessionKey")
-                    .HasColumnType("INTEGER");
-
-                b.HasKey("Id");
-
-                b.ToTable("Scenario");
-            });
-
         modelBuilder.Entity("PitWall.Data.Entities.SessionResult", b =>
             {
                 b.Property<int>("SessionKey")
@@ -579,23 +450,6 @@ partial class PitWallDbContextModelSnapshot : ModelSnapshot
                 b.HasKey("SessionKey", "Date");
 
                 b.ToTable("Weather");
-            });
-
-        modelBuilder.Entity("PitWall.Data.Entities.InjectedEvent", b =>
-            {
-                b.HasOne("PitWall.Data.Entities.Scenario", null)
-                    .WithMany()
-                    .HasForeignKey("ScenarioId")
-                    .OnDelete(DeleteBehavior.Cascade)
-                    .IsRequired();
-            });
-
-        modelBuilder.Entity("PitWall.Data.Entities.JevDecisionLog", b =>
-            {
-                b.HasOne("PitWall.Data.Entities.Scenario", null)
-                    .WithMany()
-                    .HasForeignKey("ScenarioId")
-                    .OnDelete(DeleteBehavior.SetNull);
             });
 #pragma warning restore 612, 618
     }

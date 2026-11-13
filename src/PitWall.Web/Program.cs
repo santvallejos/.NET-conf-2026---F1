@@ -1,12 +1,7 @@
-using Microsoft.Extensions.Options;
-
-using PitWall.Jev;
-using PitWall.Jev.Guards;
-using PitWall.Jev.Real;
 using PitWall.Replay;
 using PitWall.Web.Components;
 using PitWall.Web.Components.Panels.Energy;
-using PitWall.Web.Components.Panels.JevVsTeam;
+using PitWall.Web.Components.Panels.Laps;
 using PitWall.Web.Components.Panels.Map;
 using PitWall.Web.Components.Panels.Radio;
 using PitWall.Web.Components.Panels.Telemetry;
@@ -21,20 +16,14 @@ builder.AddServiceDefaults();
 
 builder.Services.AddPitWallStorage(builder.Configuration, builder.Environment);
 builder.Services.AddPitWallReplay(builder.Configuration);
-builder.Services.AddPitWallJev();
-builder.Services.AddPitWallJevReal(sp => sp.GetRequiredService<IOptions<PitWallOptions>>().Value.DefaultSessionKey);
 builder.Services.AddPitWallUi(builder.Configuration);
 builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddPitWallEnergy(builder.Configuration);
 builder.Services.AddPitWallStrategy(builder.Configuration);
-builder.Services.AddPitWallScenarios(builder.Configuration);
-builder.Services.AddPitWallJevWorker();
-builder.Services.AddPitWallJevVsTeam();
 builder.Services.AddPitWallTelemetry();
 builder.Services.AddPitWallMap();
+builder.Services.AddPitWallLaps();
 builder.Services.AddPitWallRadio();
-builder.Services.AddOpenTelemetry()
-    .WithMetrics(metrics => metrics.AddMeter(JevMetrics.MeterName, StrategyMetrics.MeterName));
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

@@ -16,17 +16,11 @@
     background: var(--pw-surface);
 }
 
-/* El mapa ocupa también la fila de widgets: es el panel que más gana con alto extra. */
-.grid {
-    display: grid;
+.view {
+    display: flex;
     flex: 1;
-    grid-template-columns: minmax(30rem, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr) auto;
-    grid-template-areas:
-        "left-top center-top right-top"
-        "left-bottom center-bottom right-bottom"
-        "left-bottom widget-center widget-right";
-    gap: 0.6rem;
+    flex-direction: column;
+    min-width: 0;
     min-height: 0;
     padding: 0.6rem;
 }
@@ -35,19 +29,5 @@
     .pitwall {
         height: auto;
         overflow: visible;
-    }
-
-    .grid {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: none;
-        grid-template-areas:
-            "left-top"
-            "left-bottom"
-            "center-top"
-            "center-bottom"
-            "right-top"
-            "right-bottom"
-            "widget-center"
-            "widget-right";
     }
 }

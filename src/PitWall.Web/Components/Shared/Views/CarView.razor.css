@@ -1,0 +1,19 @@
+/* Telemetría a la izquierda en todo el alto: es la que más gana con ancho y alto. */
+.car {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+        "telemetry energy"
+        "telemetry tyres";
+}
+
+@media (max-width: 1100px) {
+    .car {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        grid-template-areas:
+            "telemetry"
+            "energy"
+            "tyres";
+    }
+}

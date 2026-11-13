@@ -75,6 +75,6 @@ public sealed class TrackMapService
             return null;
         }
 
-        return new TrackMapData(data.Width, data.Height, data.Outline, data.StartFinish, data.CarsAt(state.Clock, StaleAfter));
+        return new TrackMapData(data.Width, data.Height, data.Outline, data.Sectors, data.CarsAt(state.Clock, StaleAfter));
     }
 }

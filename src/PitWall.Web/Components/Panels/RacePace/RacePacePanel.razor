@@ -1,0 +1,186 @@
+@using PitWall.Domain
+@using PitWall.Strategy.Timing
+@using PitWall.Web.Components.Panels.Laps
+@using PitWall.Web.Components.Shared
+@inherits LapTimingPanelBase
+
+@* Ritmo de carrera (docs/ui.md §2 panel 13): historial vuelta a vuelta del foco y de un rival, alineado por número
+   de vuelta (más recientes arriba) con la diferencia de tiempo entre ambos. *@
+@{
+    var view = View;
+    var timing = Timing;
+    var state = view.State;
+    var focus = view.FocusDriver;
+    var rival = state is null ? null : RivalOf(state, focus);
+}
+
+<section class="panel race-pace">
+    <header class="panel-header">
+        <h2>Ritmo de carrera</h2>
+        @if (state is not null)
+        {
+            <label class="rival-picker">
+                <span>vs</span>
+                <select value="@(_rival?.ToString() ?? "")" @onchange="OnRivalChanged" aria-label="Rival">
+                    <option value="">Auto (adelante)</option>
+                    @foreach (var car in state.Cars.Where(car => car.DriverNumber != focus))
+                    {
+                        <option value="@car.DriverNumber">P@(car.Position) @(view.Drivers.GetValueOrDefault(car.DriverNumber)?.Acronym ?? $"#{car.DriverNumber}")</option>
+                    }
+                </select>
+            </label>
+        }
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (timing is null)
+    {
+        <p class="empty">Cargando vueltas…</p>
+    }
+    else
+    {
+        var focusLaps = LapsOf(timing, focus);
+        var rivalLaps = rival is { } rivalNumber ? LapsOf(timing, rivalNumber) : [];
+        var lapNumbers = focusLaps.Keys.Union(rivalLaps.Keys).OrderDescending().ToList();
+        var focusInfo = view.Drivers.GetValueOrDefault(focus);
+        var rivalInfo = rival is { } r ? view.Drivers.GetValueOrDefault(r) : null;
+
+            <table class="pace-table">
+                <thead>
+                    <tr class="drivers">
+                        <th></th>
+                        @* La celda del nombre va sobre "Vuelta" y los sectores tienen la suya: así, al ocultar los
+                           sectores en un panel angosto, las columnas siguen alineadas. *@
+                        <th class="driver-head" style="--team: @(focusInfo?.TeamColour ?? "var(--pw-muted)")">
+                            <span class="team-bar"></span>@(focusInfo?.Acronym ?? $"#{focus}")
+                        </th>
+                        <th colspan="3" class="sector"></th>
+                        <th></th>
+                        <th class="num">Δ</th>
+                        <th class="driver-head" style="--team: @(rivalInfo?.TeamColour ?? "var(--pw-muted)")">
+                            <span class="team-bar"></span>@(rivalInfo?.Acronym ?? (rival is { } n ? $"#{n}" : RaceFormat.Missing))
+                        </th>
+                        <th colspan="3" class="sector"></th>
+                        <th></th>
+                    </tr>
+                    <tr>
+                        <th class="num">V</th>
+                        <th class="num">Vuelta</th>
+                        <th class="num sector">S1</th>
+                        <th class="num sector">S2</th>
+                        <th class="num sector">S3</th>
+                        <th>Neum.</th>
+                        <th class="num" title="Foco − rival">s</th>
+                        <th class="num">Vuelta</th>
+                        <th class="num sector">S1</th>
+                        <th class="num sector">S2</th>
+                        <th class="num sector">S3</th>
+                        <th>Neum.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (lapNumbers.Count == 0)
+                    {
+                        <tr><td colspan="12" class="empty">Sin vueltas completas todavía.</td></tr>
+                    }
+                    @foreach (var lapNumber in lapNumbers)
+                    {
+                        var mine = focusLaps.GetValueOrDefault(lapNumber);
+                        var theirs = rivalLaps.GetValueOrDefault(lapNumber);
+                        var delta = mine is not null && theirs is not null ? mine.Lap.Seconds - theirs.Lap.Seconds : (double?)null;
+                        <tr @key="lapNumber">
+                            <td class="num lap-number">@lapNumber</td>
+                            @LapCells(state.SessionKey, focus, mine)
+                            <td class="num delta @(delta is < 0 ? "faster" : delta is > 0 ? "slower" : null)">@Delta(delta)</td>
+                            @if (rival is { } rivalDriver)
+                            {
+                                @LapCells(state.SessionKey, rivalDriver, theirs)
+                            }
+                            else
+                            {
+                                @LapCells(state.SessionKey, 0, null)
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+    }
+</section>
+
+@code {
+    private int? _rival;
+
+    // Celdas de una vuelta de un piloto: tiempo, sectores con color de timing, compuesto y marcas.
+    private RenderFragment LapCells(int sessionKey, int driverNumber, TimedLap? lap) => __builder =>
+    {
+        if (lap is null)
+        {
+            <td class="num missing">@RaceFormat.Missing</td>
+            <td class="num sector missing"></td>
+            <td class="num sector missing"></td>
+            <td class="num sector missing"></td>
+            <td></td>
+            return;
+        }
+
+        var context = LapTiming.Context(sessionKey, driverNumber, lap.LapNumber);
+        <td class="num @RaceFormat.TimingClassName(lap.Lap.Class)">@RaceFormat.LapTime(lap.Lap.Seconds)</td>
+        <td class="num sector @RaceFormat.TimingClassName(lap.S1?.Class)">@RaceFormat.SectorTime(lap.S1?.Seconds)</td>
+        <td class="num sector @RaceFormat.TimingClassName(lap.S2?.Class)">@RaceFormat.SectorTime(lap.S2?.Seconds)</td>
+        <td class="num sector @RaceFormat.TimingClassName(lap.S3?.Class)">@RaceFormat.SectorTime(lap.S3?.Seconds)</td>
+        <td>
+            <div class="lap-tags">
+                @if (context?.Compound is { } compound)
+                {
+                    <span class="tyre @RaceFormat.CompoundClass(compound)">@RaceFormat.CompoundLetter(compound)</span>
+                }
+                @if (lap.IsInLap)
+                {
+                    <span class="tag in" title="Vuelta de entrada a boxes">IN</span>
+                }
+                @if (lap.IsPitOutLap)
+                {
+                    <span class="tag out" title="Vuelta de salida de boxes">OUT</span>
+                }
+                @if (context?.Neutralised == true)
+                {
+                    <span class="tag neutral" title="Vuelta neutralizada (SC, VSC, amarilla o roja)">NEU</span>
+                }
+            </div>
+        </td>
+    };
+
+    private void OnRivalChanged(ChangeEventArgs args) =>
+        _rival = int.TryParse(args.Value?.ToString(), out var driver) ? driver : null;
+
+    // Rival elegido o, por defecto, el auto de adelante en la torre (el de atrás si el foco lidera).
+    private int? RivalOf(RaceState state, int focus)
+    {
+        if (_rival is { } chosen && chosen != focus && state.Cars.Any(car => car.DriverNumber == chosen))
+        {
+            return chosen;
+        }
+
+        var focusCar = state.Cars.FirstOrDefault(car => car.DriverNumber == focus);
+        if (focusCar is null)
+        {
+            return null;
+        }
+
+        var targetPosition = focusCar.Position == 1 ? 2 : focusCar.Position - 1;
+        return state.Cars.FirstOrDefault(car => car.Position == targetPosition)?.DriverNumber;
+    }
+
+    private static Dictionary<int, TimedLap> LapsOf(LapTimingSnapshot timing, int driverNumber) =>
+        timing.Drivers.GetValueOrDefault(driverNumber)?.Laps.ToDictionary(lap => lap.LapNumber) ?? [];
+
+    private static string Delta(double? seconds) => seconds switch
+    {
+        null => "",
+        >= 0 => $"+{RaceFormat.Number(seconds.Value, "0.000")}",
+        _ => RaceFormat.Number(seconds.Value, "0.000"),
+    };
+}

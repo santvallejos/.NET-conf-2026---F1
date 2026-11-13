@@ -1,10 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Options;
 
 using PitWall.Domain;
-using PitWall.Jev;
-using PitWall.Jev.Runtime;
-using PitWall.Strategy.Scenarios;
 using PitWall.Web.Services;
 
 namespace PitWall.Web.Hubs;
@@ -15,13 +11,7 @@ namespace PitWall.Web.Hubs;
 /// </summary>
 public sealed class PitWallHub(
     PitWallSession session,
-    StrategyStore strategies,
-    JevDecisionStore jevDecisions,
-    JevTriggers jevTriggers,
-    JevRuntimeOverrides jevOverrides,
-    IOptionsMonitor<JevOptions> jevOptions,
-    ScenarioService scenarios,
-    ScenarioStrategyStore hypotheticalStrategies) : Hub<IPitWallClient>
+    StrategyStore strategies) : Hub<IPitWallClient>
 {
     public const string Route = "/hubs/pitwall";
 
@@ -69,78 +59,4 @@ public sealed class PitWallHub(
     /// <summary>Cambia el foco de todos los clientes; el nuevo llega por <c>OnFocusChanged</c>.</summary>
     [HubMethodName("SetFocusDriver")]
     public Task SetFocusDriverAsync(int driverNumber) => session.SetFocusDriverAsync(driverNumber);
-
-    /// <summary>Decisiones de Jev de la sesión activa, de la más vieja a la más nueva.</summary>
-    public IReadOnlyList<JevDecision> GetJevDecisions() =>
-        session.View.State is { } state ? jevDecisions.Get(state.SessionKey) : [];
-
-    /// <summary>Configuración de Jev vigente, con los cambios en caliente aplicados.</summary>
-    public JevSettings GetJevSettings() => JevSettings.From(jevOptions.CurrentValue);
-
-    /// <summary>
-    /// "Consultar Jev": estrategia del piloto ahora, en cualquier modo; la decisión llega por <c>OnJevDecision</c>.
-    /// Con un escenario hipotético activo se consulta con su estrategia y la decisión es HIPOTÉTICA.
-    /// </summary>
-    public void RequestJevStrategy(int driverNumber) =>
-        jevTriggers.RequestStrategy(driverNumber, scenarios.View.Active is { IsReal: false } scenario ? scenario.Id : null);
-
-    public JevSettings SetJevEnabled(bool enabled)
-    {
-        jevOverrides.SetEnabled(enabled);
-        return GetJevSettings();
-    }
-
-    public JevSettings SetJevMode(JevMode mode)
-    {
-        if (!Enum.IsDefined(mode))
-        {
-            throw new HubException($"Unknown Jev mode {mode}.");
-        }
-
-        jevOverrides.SetMode(mode);
-        return GetJevSettings();
-    }
-
-    public JevSettings SetJevLaps(int[] laps)
-    {
-        jevOverrides.SetLaps(laps);
-        return GetJevSettings();
-    }
-
-    public JevSettings SetJevDriverEnabled(int driverNumber, bool enabled)
-    {
-        jevOverrides.SetDriverEnabled(driverNumber, enabled);
-        return GetJevSettings();
-    }
-
-    /// <summary>Escenarios de la sesión activa (<c>Real</c> siempre está) y el activo.</summary>
-    public ScenarioView GetScenarios() => scenarios.View;
-
-    /// <summary>Crea un escenario vacío y lo deja activo; si no se pudo, el motivo viene en <c>error</c>.</summary>
-    [HubMethodName("CreateScenario")]
-    public async Task<ScenarioView> CreateScenarioAsync(string name)
-    {
-        await scenarios.CreateAsync(name, Context.ConnectionAborted);
-        return scenarios.View;
-    }
-
-    [HubMethodName("SelectScenario")]
-    public async Task<ScenarioView> SelectScenarioAsync(Guid scenarioId)
-    {
-        await scenarios.SelectAsync(scenarioId);
-        return scenarios.View;
-    }
-
-    /// <summary>
-    /// Inyecta un evento hipotético en el escenario activo (o en uno nuevo si el activo es <c>Real</c>). Con
-    /// <c>lap</c> ≤ vuelta actual tiene efecto inmediato; si no, queda programado. null si no se pudo.
-    /// </summary>
-    [HubMethodName("InjectEvent")]
-    public Task<InjectedEvent?> InjectEventAsync(InjectEventRequest request) => scenarios.InjectAsync(request, Context.ConnectionAborted);
-
-    /// <summary>Última estrategia HIPOTÉTICA del piloto en el escenario activo, o null.</summary>
-    public StrategySnapshot? GetHypotheticalStrategy(int driverNumber) =>
-        session.View.State is { } state && scenarios.View.Active is { IsReal: false } scenario
-            ? hypotheticalStrategies.Get(state.SessionKey, scenario.Id, driverNumber)?.Publication.Result.Snapshot
-            : null;
 }

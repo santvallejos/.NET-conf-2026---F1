@@ -74,7 +74,7 @@ internal sealed partial class SessionDetails
                 .ToDictionary(group => group.Key, group => group.Select(e => e.Date).Order().ToArray()),
             [.. weather
                 .OrderBy(e => e.Date)
-                .Select(e => new WeatherReading(e.Date, e.AirTemp, e.TrackTemp, e.Humidity, e.Rainfall, e.WindSpeed, e.WindDirection))]);
+                .Select(e => new WeatherReading(e.Date, e.AirTemp, e.TrackTemp, e.Humidity, e.Rainfall, e.WindSpeed, e.WindDirection, e.Pressure))]);
     }
 
     // El color va a un atributo style: solo se acepta hex de 6 dígitos (OpenF1 lo manda sin '#').

@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\PitWall.Strategy\PitWall.Strategy.csproj" />
-    <ProjectReference Include="..\..\src\PitWall.Jev\PitWall.Jev.csproj" />
     <ProjectReference Include="..\..\src\PitWall.Ingestion\PitWall.Ingestion.csproj" />
     <ProjectReference Include="..\..\src\PitWall.Replay\PitWall.Replay.csproj" />
   </ItemGroup>

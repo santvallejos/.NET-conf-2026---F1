@@ -1,0 +1,136 @@
+.weather-detail {
+    container-type: inline-size;
+}
+
+.variables {
+    display: grid;
+    flex: 1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(9rem, 1fr);
+    gap: 0.6rem;
+}
+
+/* Una tarjeta por variable; el color de la serie sale de --series. */
+.variable {
+    --series: var(--pw-accent);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--pw-border-soft);
+    border-radius: 4px;
+    background: var(--pw-surface);
+}
+
+.variable.track { --series: var(--pw-temp-track); }
+.variable.air { --series: var(--pw-temp-air); }
+.variable.humidity { --series: #9fb4ff; }
+.variable.wind { --series: #d8e0ea; }
+.variable.pressure { --series: #b48cff; }
+.variable.rain-card { --series: var(--pw-flag-blue); }
+
+.variable header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.name {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.delta {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.delta.up,
+.delta.down {
+    color: var(--pw-text);
+}
+
+.value {
+    color: var(--series);
+    font-size: 1.6rem;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.unit {
+    color: var(--pw-muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.rain-card .value {
+    color: var(--pw-text);
+}
+
+.rain-card.raining .value {
+    color: var(--pw-flag-blue);
+}
+
+.series {
+    flex: 1;
+    width: 100%;
+    min-height: 3rem;
+}
+
+.series .line {
+    fill: none;
+    stroke: var(--series);
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+}
+
+.series .area {
+    fill: color-mix(in srgb, var(--series) 14%, transparent);
+    stroke: none;
+}
+
+.rain-series rect {
+    fill: color-mix(in srgb, var(--series) 70%, transparent);
+}
+
+.rain-series .baseline {
+    stroke: var(--pw-border);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.range {
+    display: flex;
+    justify-content: space-between;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.wind-direction {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.6rem 0 0;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+/* La flecha apunta hacia donde va el viento (dirección meteorológica = de dónde viene). */
+.arrow {
+    display: inline-block;
+    color: var(--pw-text);
+    font-size: 1.1rem;
+}
+
+@container (max-width: 640px) {
+    .variables {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

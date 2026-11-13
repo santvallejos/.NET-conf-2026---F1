@@ -76,8 +76,8 @@ public sealed class PitWallSession
     }
 
     /// <summary>
-    /// Pilotos elegibles como foco (<c>PitWall:FocusDriver</c> + <c>PitWall:BackgroundDrivers</c>): su estrategia y Jev
-    /// ya se calculan en segundo plano, así que cambiar de foco no recalcula nada (ADR-006).
+    /// Pilotos elegibles como foco (<c>PitWall:FocusDriver</c> + <c>PitWall:BackgroundDrivers</c>): su estrategia ya se
+    /// calcula en segundo plano, así que cambiar de foco no recalcula nada (ADR-006).
     /// </summary>
     public IReadOnlyList<int> TrackedDrivers { get; }
 

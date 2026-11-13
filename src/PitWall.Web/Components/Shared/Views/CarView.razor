@@ -1,0 +1,14 @@
+@using PitWall.Web.Components.Shared
+
+@* Auto (docs/ui.md §3): Telemetría (3), Energía (8) y Neumáticos (4). *@
+<div class="view-grid car">
+    <PanelZone Area="telemetry" Panels="Telemetry" />
+    <PanelZone Area="energy" Panels="Energy" />
+    <PanelZone Area="tyres" Panels="Tyres" />
+</div>
+
+@code {
+    private static readonly PanelEntry[] Telemetry = [PanelCatalog.Telemetry];
+    private static readonly PanelEntry[] Energy = [PanelCatalog.Energy];
+    private static readonly PanelEntry[] Tyres = [PanelCatalog.Tyres];
+}

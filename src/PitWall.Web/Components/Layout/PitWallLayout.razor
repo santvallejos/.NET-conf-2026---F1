@@ -1,12 +1,11 @@
-@* Layout de la charla para una pantalla (docs/ui.md §3): barra superior y grilla 3×2 de zonas con pestañas, más una
-   fila compacta de widgets. Las zonas se ubican por grid-area: left-top, left-bottom, center-top, center-bottom,
-   right-top, right-bottom, widget-center y widget-right. *@
+@* Marco de las vistas de la charla (docs/ui.md §3): barra común arriba y la vista activa debajo. Cada vista define
+   su propia grilla; las zonas se ubican por grid-area. *@
 
 <div class="pitwall">
     <header class="top-bar">
         @TopBar
     </header>
-    <main class="grid">
+    <main class="view">
         @ChildContent
     </main>
 </div>

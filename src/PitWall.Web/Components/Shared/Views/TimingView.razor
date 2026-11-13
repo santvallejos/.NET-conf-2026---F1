@@ -1,0 +1,14 @@
+@using PitWall.Web.Components.Shared
+
+@* Timing (docs/ui.md §3): Torre (1), Mejores sectores (12) y Ritmo de carrera (13). El mapa tiene su propia vista (GPS). *@
+<div class="view-grid timing">
+    <PanelZone Area="tower" Panels="Tower" />
+    <PanelZone Area="best" Panels="BestSectors" />
+    <PanelZone Area="pace" Panels="RacePace" />
+</div>
+
+@code {
+    private static readonly PanelEntry[] Tower = [PanelCatalog.Tower];
+    private static readonly PanelEntry[] BestSectors = [PanelCatalog.BestSectors];
+    private static readonly PanelEntry[] RacePace = [PanelCatalog.RacePace];
+}

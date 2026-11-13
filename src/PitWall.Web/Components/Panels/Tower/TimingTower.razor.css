@@ -1,3 +1,7 @@
+.tower {
+    container-type: inline-size;
+}
+
 .tower-table {
     width: 100%;
     border-collapse: collapse;
@@ -79,4 +83,24 @@ tr.focus {
 
 tr.focus .acronym {
     color: #fff;
+}
+
+
+/* Torre en una columna angosta (pantallas chicas, /panel/tower en ventana chica): compacta sin bajar de 14 px para que entren los sectores. */
+@container (max-width: 760px) {
+    th,
+    td {
+        padding-right: 0.3rem;
+        padding-left: 0.3rem;
+        font-size: 0.875rem;
+    }
+
+    .driver,
+    .tyre-cell {
+        gap: 0.3rem;
+    }
+
+    .acronym {
+        min-width: 2.4rem;
+    }
 }

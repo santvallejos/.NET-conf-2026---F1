@@ -1,0 +1,14 @@
+/* Segunda fila de la barra común: pestañas y timeline de radio. */
+.view-bar {
+    display: flex;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    min-width: 0;
+}
+
+.radio-slot {
+    flex: 1 1 30rem;
+    min-width: 0;
+}

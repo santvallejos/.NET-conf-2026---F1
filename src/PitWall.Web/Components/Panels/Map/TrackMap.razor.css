@@ -21,8 +21,18 @@
     stroke-width: 16;
 }
 
-.start-finish {
-    fill: var(--pw-text);
+.sector line {
+    stroke: var(--pw-text);
+    stroke-width: 6;
+}
+
+.sector text {
+    fill: var(--pw-muted);
+    font-family: var(--pw-mono);
+    font-size: 28px;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
 }
 
 .car .dot {

@@ -2,9 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using PitWall.Data;
-using PitWall.Jev.Caching;
-using PitWall.Jev.Decisions;
-using PitWall.Strategy.Scenarios;
 
 namespace PitWall.Web.Storage;
 
@@ -14,8 +11,7 @@ public static class StorageServiceCollectionExtensions
     private const string SolutionFileName = "PitWall.sln";
 
     /// <summary>
-    /// Registra la fábrica de <see cref="PitWallDbContext"/> sobre la base SQLite existente y las
-    /// implementaciones de almacenamiento que definen las otras capas.
+    /// Registra la fábrica de <see cref="PitWallDbContext"/> sobre la base SQLite existente.
     /// </summary>
     public static IServiceCollection AddPitWallStorage(
         this IServiceCollection services,
@@ -34,9 +30,6 @@ public static class StorageServiceCollectionExtensions
         services.AddDbContextFactory<PitWallDbContext>(options =>
             options.UseSqlite($"Data Source={databasePath};Mode=ReadWrite"));
         services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton<IJevCacheStore, SqliteJevCacheStore>();
-        services.AddSingleton<IJevDecisionLog, SqliteJevDecisionLog>();
-        services.AddSingleton<IScenarioStore, SqliteScenarioStore>();
 
         return services;
     }

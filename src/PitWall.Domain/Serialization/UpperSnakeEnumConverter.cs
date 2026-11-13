@@ -4,8 +4,8 @@ using System.Text.Json.Serialization;
 namespace PitWall.Domain.Serialization;
 
 /// <summary>
-/// Serializa los valores del enum en UPPER_SNAKE (p. ej. <c>BoxNextLap</c> ↔ <c>"BOX_NEXT_LAP"</c>),
-/// formato del contrato Jev / OpenF1.
+/// Serializa los valores del enum en UPPER_SNAKE (p. ej. <c>Intermediate</c> ↔ <c>"INTERMEDIATE"</c>),
+/// formato del contrato público / OpenF1.
 /// </summary>
 public sealed class UpperSnakeEnumConverter<TEnum> : JsonStringEnumConverter<TEnum>
     where TEnum : struct, Enum

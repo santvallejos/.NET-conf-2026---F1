@@ -1,0 +1,18 @@
+/* El mapa ocupa todo el alto de la vista: el panel y el SVG crecen en vez de quedarse en su alto fijo
+   (TrackMap limita el SVG a 24rem para cuando comparte grilla o abre en /panel/map). El viewBox conserva la
+   proporción del trazado, así que el circuito queda centrado sin deformarse. */
+.gps {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: "map";
+}
+
+.gps ::deep .panel.track-map {
+    flex: 1 1 0;
+}
+
+.gps ::deep .map {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: none;
+}

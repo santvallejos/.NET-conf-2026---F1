@@ -1,25 +1,17 @@
 using PitWall.Domain;
 using PitWall.Strategy.Degradation;
 using PitWall.Strategy.Energy;
-using PitWall.Strategy.MonteCarlo;
-using PitWall.Strategy.Rules;
-using PitWall.Strategy.Scenarios;
+using PitWall.Strategy.PitWindow;
 
 namespace PitWall.Strategy.Workers;
 
 /// <summary>
-/// Cálculo de estrategia de un piloto al cerrar una vuelta (docs/architecture.md §3): degradación de toda la
-/// parrilla, energía, reglas (restricciones y razones) y Monte Carlo sobre las candidatas permitidas.
+/// Cálculo de estrategia de un piloto al cerrar una vuelta (docs/architecture.md §3): degradación del stint actual,
+/// energía y pit loss de la sesión.
 /// </summary>
 public sealed class StrategyCalculator
 {
-    // Auto con varias vueltas menos que el líder y sin gap: abandonó y no cuenta como tráfico.
-    private const int RetiredLapDeficit = 3;
-
-    // Gap supuesto respecto al de adelante para un auto sin dato de intervalo (p. ej. doblado).
-    private const double UnknownGapStepSeconds = 1.0;
-
-    // Ritmo base si nadie tiene vueltas con tiempo todavía: solo importan los tiempos relativos.
+    // Ritmo base si nadie tiene vueltas con tiempo todavía: solo completa el modelo.
     private const double NoDataLapTimeSeconds = 90.0;
 
     // Vueltas recientes con las que se estima el ritmo de un auto sin modelo de degradación.
@@ -28,49 +20,37 @@ public sealed class StrategyCalculator
     // lane_duration fuera de este rango (drive-through, auto guardado) no es una parada normal.
     private const double MaxPitLaneSeconds = 60.0;
 
-    private static readonly Compound[] DryCompounds = [Compound.Soft, Compound.Medium, Compound.Hard];
-
     private readonly TyreDegradationModel _degradation;
     private readonly DegradationOptions _degradationOptions;
-    private readonly RulesEngine _rules;
-    private readonly MonteCarloSimulator _simulator;
-    private readonly MonteCarloOptions _options;
+    private readonly PitCallOptions _pitCallOptions;
     private readonly TimeProvider _timeProvider;
 
     public StrategyCalculator(
         TyreDegradationModel degradation,
         DegradationOptions degradationOptions,
-        RulesEngine rules,
-        MonteCarloSimulator simulator,
-        MonteCarloOptions options,
+        PitCallOptions pitCallOptions,
         TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(degradation);
         ArgumentNullException.ThrowIfNull(degradationOptions);
-        ArgumentNullException.ThrowIfNull(rules);
-        ArgumentNullException.ThrowIfNull(simulator);
-        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(pitCallOptions);
         ArgumentNullException.ThrowIfNull(timeProvider);
 
         _degradation = degradation;
         _degradationOptions = degradationOptions;
-        _rules = rules;
-        _simulator = simulator;
-        _options = options;
+        _pitCallOptions = pitCallOptions;
         _timeProvider = timeProvider;
     }
 
     /// <summary>
     /// Estrategia de <paramref name="driverNumber"/> en su vuelta en curso; <c>null</c> si no está en carrera o la
-    /// carrera ya terminó para él. Con un escenario hipotético los eventos inyectados activos se aplican como ciertos
-    /// al estado, a las reglas y a Monte Carlo, y el snapshot queda marcado <see cref="StrategySnapshot.Hypothetical"/>.
+    /// carrera ya terminó para él.
     /// </summary>
     public StrategyResult? Calculate(StrategyContext context, int driverNumber)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var scenario = context.Scenario;
-        var state = scenario.Apply(context.State);
+        var state = context.State;
         var car = state.Cars.FirstOrDefault(candidate => candidate.DriverNumber == driverNumber);
         if (car is null || car.Lap < 1 || car.Lap > context.TotalLaps)
         {
@@ -78,140 +58,32 @@ public sealed class StrategyCalculator
         }
 
         var started = _timeProvider.GetTimestamp();
-        var lap = car.Lap;
-        var running = state.Cars
-            .Where(candidate => candidate.DriverNumber == driverNumber || !IsRetired(candidate, state))
-            .ToList();
-        var paces = Paces(context, running);
-        var tyre = paces[driverNumber];
-        var compounds = FreshTyreModels(context, driverNumber, tyre);
-
+        var tyre = CurrentTyre(context, car);
         var overtakeDisabled = OvertakeSignals.IsOvertakeDisabled(context.RaceControl);
-        var ersFailure = scenario.ErsFailures.ContainsKey(driverNumber);
         var energy = context.Energy.TryGetValue(driverNumber, out var estimate)
             ? estimate
             : new EnergyEstimate(100.0, 0, 0, EnergyModel.IsOvertakeAvailable(car.Interval, overtakeDisabled), IsEstimated: true);
-        var (pitLossMean, pitLossSigma) = PitLoss(context.PitLaneDurations);
-        var rainRisk = RainSignals.RainRisk(context.RaceControl);
 
-        var index = running.FindIndex(candidate => candidate.DriverNumber == driverNumber);
-        var rain = scenario.Rain != RainIntensity.None ? scenario.Rain
-            : state.Weather.Rainfall ? RainIntensity.Light
-            : RainIntensity.None;
-        var previousRain = scenario.PreviousRain != RainIntensity.None ? scenario.PreviousRain
-            : context.PreviousRainfall ? RainIntensity.Light
-            : RainIntensity.None;
-        var features = new RuleFeatures(
-            state.Track,
-            RaceControlSignals.IsPitLaneClosed(context.RaceControl),
-            rain,
-            previousRain,
-            RainForecast: rainRisk > 0,
-            context.TrackWet || scenario.Rain != RainIntensity.None || scenario.PreviousRain != RainIntensity.None,
-            UsedCompounds(context, driverNumber),
-            tyre,
-            energy,
-            GapBehind: index + 1 < running.Count ? running[index + 1].Interval : null,
-            RivalAheadPitted: index > 0 && running[index - 1].InPit,
-            ExitGap(running, car, pitLossMean),
-            context.PuncturedDrivers.Contains(driverNumber) || scenario.PuncturedDrivers.Contains(driverNumber),
-            scenario.WingDamage.GetValueOrDefault(driverNumber),
-            scenario.RivalIncidentDrivers.Contains(driverNumber),
-            ersFailure);
-        var constraints = _rules.EvaluateConstraints(features);
-        var reasons = _rules.EvaluateReasons(features);
-
-        // Bandera roja: el cambio de gomas en parrilla es libre, así que STAY_OUT sigue con goma nueva.
-        var candidateTyre = scenario.RedFlag ? tyre with { TyreAge = 0, LapsToCliff = _degradation.LapsToCliff(tyre.DegPerLap, 0) } : tyre;
-        var candidates = CandidateGenerator.Generate(lap, context.TotalLaps, candidateTyre, compounds, constraints);
-        var neutralisation = state.Track.SafetyCar ? Neutralisation.SafetyCar
-            : state.Track.VirtualSafetyCar ? Neutralisation.VirtualSafetyCar
-            : Neutralisation.None;
-        var injectedNeutralisation = neutralisation != Neutralisation.None && scenario.Neutralisation == neutralisation;
-        var input = new MonteCarloInput(
-            driverNumber,
-            lap,
-            context.TotalLaps,
-            Field(context, running, paces),
-            compounds,
-            state.Weather.Rainfall,
-            rainRisk,
-            neutralisation,
-            pitLossMean,
-            pitLossSigma,
-            OvertakeBase(context),
-            OvertakeModeEnabled: !overtakeDisabled && !ersFailure,
-            _degradationOptions.FuelCoefSecondsPerLap,
-            features.Puncture,
-            _options.Seed)
+        var snapshot = new StrategySnapshot(driverNumber, car.Lap, tyre, energy)
         {
-            ActiveNeutralisationLaps = injectedNeutralisation ? scenario.NeutralisationLapsLeft : null,
-            ActiveNeutralisationPitLossFactor = injectedNeutralisation ? scenario.NeutralisationPitLossFactor : null,
-            CompressGapsAtStart = injectedNeutralisation && neutralisation == Neutralisation.SafetyCar,
-            RedFlag = scenario.RedFlag,
-            ForcedRainLaps = scenario.RainLapsLeft,
-            HeavyRain = scenario.Rain == RainIntensity.Heavy,
-            SafetyCarProbabilityFirstLap = scenario.SafetyCarProbability,
-            RepairablePacePenalties = scenario.RepairablePacePenalties,
-            PermanentPacePenalties = scenario.PermanentPacePenalties,
-            PunctureLossMinSeconds = scenario.PunctureLossMinSeconds,
-            PunctureLossMaxSeconds = scenario.PunctureLossMaxSeconds,
+            PitLossSeconds = PitLoss(context.PitLaneDurations),
         };
-
-        var monteCarloStarted = _timeProvider.GetTimestamp();
-        IReadOnlyList<StrategyOutcome> outcomes = candidates.Count == 0 ? [] : _simulator.Run(input, candidates);
-        var monteCarloDuration = _timeProvider.GetElapsedTime(monteCarloStarted);
-
-        var snapshot = new StrategySnapshot(
-            driverNumber,
-            lap,
-            tyre,
-            energy,
-            [.. outcomes
-                .OrderBy(outcome => outcome.ExpectedPosition)
-                .ThenBy(outcome => outcome.ExpectedRaceTimeDelta)
-                .ThenBy(outcome => outcome.StrategyId, StringComparer.Ordinal)],
-            reasons,
-            constraints)
-        {
-            Hypothetical = scenario.Hypothetical,
-        };
-        return new StrategyResult(snapshot, _simulator.Iterations, _timeProvider.GetElapsedTime(started), monteCarloDuration);
+        return new StrategyResult(snapshot, _timeProvider.GetElapsedTime(started));
     }
 
-    private static bool IsRetired(CarState car, RaceState state) =>
-        car.GapToLeader is null && car.Lap < state.LeaderLap - RetiredLapDeficit;
-
     /// <summary>
-    /// Modelo de degradación del stint actual de cada auto. Sin vueltas limpias propias ni de la parrilla con su
-    /// compuesto, el ritmo es la mediana de sus últimas vueltas (sin degradación) y, sin vueltas, la de la parrilla.
+    /// Modelo de degradación del stint actual. Sin vueltas limpias propias ni de la parrilla con su compuesto, el ritmo
+    /// es la mediana de sus últimas vueltas (sin degradación) y, sin vueltas, la de la parrilla.
     /// </summary>
-    private Dictionary<int, TyreModel> Paces(StrategyContext context, List<CarState> running)
+    private TyreModel CurrentTyre(StrategyContext context, CarState car)
     {
-        var fits = new Dictionary<int, TyreModel?>();
-        var recent = new Dictionary<int, double?>();
-        foreach (var car in running)
+        if (_degradation.Fit(context.CompletedLaps, car.DriverNumber, car.Compound, car.TyreAge, context.TotalLaps) is { } fit)
         {
-            fits[car.DriverNumber] = _degradation.Fit(context.CompletedLaps, car.DriverNumber, car.Compound, car.TyreAge, context.TotalLaps)?.Tyre;
-            recent[car.DriverNumber] = RecentPace(context, car.DriverNumber);
+            return fit.Tyre;
         }
 
-        var known = fits.Values.OfType<TyreModel>().Select(model => model.BaseLapTime)
-            .Concat(recent.Values.OfType<double>())
-            .ToList();
-        var fieldPace = known.Count > 0 ? Median(known) : NoDataLapTimeSeconds;
-
-        return running.ToDictionary(
-            car => car.DriverNumber,
-            car => fits[car.DriverNumber]
-                ?? new TyreModel(
-                    car.Compound,
-                    car.TyreAge,
-                    recent[car.DriverNumber] ?? fieldPace,
-                    DegPerLap: 0,
-                    _options.FallbackLapSigmaSeconds,
-                    TyreDegradationModel.NoCliff,
-                    IsFallback: true));
+        var pace = RecentPace(context, car.DriverNumber) ?? FieldPace(context);
+        return new TyreModel(car.Compound, car.TyreAge, pace, DegPerLap: 0, ResidualSigma: 0, TyreDegradationModel.NoCliff, IsFallback: true);
     }
 
     private double? RecentPace(StrategyContext context, int driverNumber)
@@ -225,85 +97,22 @@ public sealed class StrategyCalculator
         return times.Count > 0 ? Median(times) : null;
     }
 
-    /// <summary>Modelo con goma nueva del piloto por compuesto; el actual siempre está (su propio ritmo si no hay ajuste).</summary>
-    private Dictionary<Compound, TyreModel> FreshTyreModels(StrategyContext context, int driverNumber, TyreModel current)
+    private double FieldPace(StrategyContext context)
     {
-        var models = new Dictionary<Compound, TyreModel>();
-        foreach (var compound in Enum.GetValues<Compound>())
-        {
-            if (_degradation.Fit(context.CompletedLaps, driverNumber, compound, tyreAge: 0, context.TotalLaps) is { } fit)
-            {
-                models[compound] = fit.Tyre;
-            }
-        }
-
-        models.TryAdd(current.Compound, current with { TyreAge = 0, LapsToCliff = _degradation.LapsToCliff(current.DegPerLap, 0) });
-        return models;
+        var paces = context.CompletedLaps
+            .Select(lap => lap.DriverNumber)
+            .Distinct()
+            .Select(driver => RecentPace(context, driver))
+            .OfType<double>()
+            .ToList();
+        return paces.Count > 0 ? Median(paces) : NoDataLapTimeSeconds;
     }
 
-    private static IReadOnlyList<Compound> UsedCompounds(StrategyContext context, int driverNumber) =>
-        context.UsedCompounds.TryGetValue(driverNumber, out var used) ? used : [];
-
-    private static List<MonteCarloCar> Field(StrategyContext context, List<CarState> running, Dictionary<int, TyreModel> paces)
-    {
-        var field = new List<MonteCarloCar>(running.Count);
-        var previousGap = 0.0;
-        foreach (var car in running)
-        {
-            var gap = car.GapToLeader ?? (field.Count == 0 ? 0 : previousGap + UnknownGapStepSeconds);
-            previousGap = gap;
-            var used = UsedCompounds(context, car.DriverNumber).Append(car.Compound).ToHashSet();
-            var mandatoryPending = used.All(compound => DryCompounds.Contains(compound)) && used.Count < 2;
-            field.Add(new MonteCarloCar(car.DriverNumber, gap, paces[car.DriverNumber], mandatoryPending));
-        }
-
-        return field;
-    }
-
-    /// <summary>Pit loss de la sesión (<c>lane_duration</c>); con pocas paradas, el de configuración.</summary>
-    private (double Mean, double Sigma) PitLoss(IReadOnlyList<double> laneDurations)
+    /// <summary>Pit loss medio de la sesión (<c>lane_duration</c>); con pocas paradas, el de configuración.</summary>
+    private double PitLoss(IReadOnlyList<double> laneDurations)
     {
         var durations = laneDurations.Where(duration => duration is > 0 and < MaxPitLaneSeconds).ToList();
-        if (durations.Count < Math.Max(2, _options.MinPitSamples))
-        {
-            return (_options.PitLossMeanSeconds, _options.PitLossSigmaSeconds);
-        }
-
-        var mean = durations.Average();
-        var variance = durations.Sum(duration => (duration - mean) * (duration - mean)) / (durations.Count - 1);
-        return (mean, Math.Sqrt(variance));
-    }
-
-    /// <summary>Gap al auto más cercano al salir de boxes si se para ahora; null sin gap propio.</summary>
-    private static double? ExitGap(List<CarState> running, CarState car, double pitLoss)
-    {
-        if (car.GapToLeader is not { } gap)
-        {
-            return null;
-        }
-
-        var exit = gap + pitLoss;
-        var gaps = running
-            .Where(other => other.DriverNumber != car.DriverNumber && other.GapToLeader is not null)
-            .Select(other => Math.Abs(other.GapToLeader!.Value - exit))
-            .ToList();
-        return gaps.Count > 0 ? gaps.Min() : null;
-    }
-
-    /// <summary>
-    /// Probabilidad base de adelantar escalada por los <c>overtakes</c> de la sesión respecto a una carrera de
-    /// referencia (ESTIMADO); con pocas vueltas cerradas, la de configuración.
-    /// </summary>
-    private double OvertakeBase(StrategyContext context)
-    {
-        var carLaps = context.CompletedLaps.Count;
-        if (carLaps < _options.MinCarLapsForOvertakeRate)
-        {
-            return _options.OvertakeBaseProbability;
-        }
-
-        var rate = (double)context.Overtakes / carLaps;
-        return Math.Clamp(_options.OvertakeBaseProbability * rate / _options.OvertakeReferenceRatePerCarLap, 0, _options.MaxOvertakeProbability);
+        return durations.Count < _pitCallOptions.MinPitSamples ? _pitCallOptions.DefaultPitLossSeconds : durations.Average();
     }
 
     private static double Median(List<double> values)

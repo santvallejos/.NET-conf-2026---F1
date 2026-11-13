@@ -1,15 +1,12 @@
 namespace PitWall.Domain;
 
-/// <summary>Resultado de estrategia por piloto y vuelta; input de Jev (docs/architecture.md §4).</summary>
+/// <summary>Resultado de estrategia por piloto y vuelta (docs/architecture.md §4).</summary>
 public sealed record StrategySnapshot(
     int DriverNumber,
     int Lap,
     TyreModel Tyre,
-    EnergyEstimate Energy,
-    IReadOnlyList<StrategyOutcome> Outcomes,
-    IReadOnlyList<Reason> Reasons,
-    IReadOnlyList<Constraint> Constraints)
+    EnergyEstimate Energy)
 {
-    /// <summary>Calculada sobre un escenario con eventos inyectados (etiqueta HIPOTÉTICO), no sobre la carrera real.</summary>
-    public bool Hypothetical { get; init; }
+    /// <summary>Pit loss medio (s) de la llamada a boxes: <c>lane_duration</c> de la sesión o el de configuración.</summary>
+    public double? PitLossSeconds { get; init; }
 }

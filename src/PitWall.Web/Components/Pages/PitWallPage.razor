@@ -1,0 +1,33 @@
+@page "/"
+@page "/timing"
+@page "/gps"
+@page "/car"
+@page "/conditions"
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Components.Shared.Views
+@inject NavigationManager Navigation
+
+@* Una sola página para las 4 vistas: la ruta solo elige la vista inicial; después las pestañas la cambian dentro de
+   la raíz interactiva (ViewTabs) sin navegar. No hay vista de resumen: / redirige a /timing para que la URL siempre
+   nombre la vista visible. *@
+<PageTitle>PitWall · @_view.Title</PageTitle>
+
+<PitWallDashboard ViewRoute="@_view.Route" @rendermode="InteractiveServer" />
+
+@code {
+    private ViewEntry _view = ViewCatalog.Timing;
+
+    protected override void OnParametersSet()
+    {
+        var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var end = path.IndexOfAny(['?', '#']);
+        var route = (end < 0 ? path : path[..end]).Trim('/');
+        if (route.Length == 0)
+        {
+            Navigation.NavigateTo(ViewCatalog.Timing.Route, replace: true);
+            return;
+        }
+
+        _view = ViewCatalog.Find(route) ?? ViewCatalog.Timing;
+    }
+}

@@ -1,9 +1,10 @@
 @page "/panel"
 @page "/panel/{Slug}"
 @using PitWall.Web.Components.Shared
+@using PitWall.Web.Components.Shared.Views
 @inject NavigationManager Navigation
 
-@* Ensayo multi-monitor (docs/ui.md §3): cada panel en su ventana; /panel lista las rutas. Todas las ventanas
+@* Ensayo multi-monitor (docs/ui.md §3): cada vista o panel en su ventana; /panel lista las rutas. Todas las ventanas
    comparten la sesión del servidor, así que controlar el replay en una mueve todas. *@
 @if (_entry is not null)
 {
@@ -13,13 +14,20 @@
 }
 else if (Slug is null)
 {
-    <PageTitle>PitWall · Paneles</PageTitle>
+    <PageTitle>PitWall · Ventanas</PageTitle>
 
-    <nav class="panel-index" aria-label="Paneles">
-        <h1>Paneles</h1>
-        <p class="hint">Cada panel abre en una ventana propia; todas siguen el mismo replay.</p>
+    <nav class="panel-index" aria-label="Ventanas">
+        <h1>Ventanas</h1>
+        <p class="hint">Cada vista o panel abre en una ventana propia; todas siguen el mismo replay.</p>
+        <h2>Vistas</h2>
         <ul>
-            <li><a href="" target="_blank">Pit wall completo</a><span class="route num">/</span></li>
+            @foreach (var view in ViewCatalog.All)
+            {
+                <li><a href="@view.Route" target="_blank">@view.Key · @view.Title</a><span class="route num">/@view.Route</span></li>
+            }
+        </ul>
+        <h2>Paneles</h2>
+        <ul>
             @foreach (var entry in PanelCatalog.All)
             {
                 <li><a href="panel/@entry.Slug" target="_blank">@entry.Title</a><span class="route num">/panel/@entry.Slug</span></li>

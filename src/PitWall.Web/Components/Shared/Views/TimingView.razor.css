@@ -1,0 +1,19 @@
+/* Torre a la izquierda en todo el alto; a la derecha los rankings arriba y el ritmo de carrera abajo. */
+.timing {
+    grid-template-columns: minmax(30rem, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+        "tower best"
+        "tower pace";
+}
+
+@media (max-width: 1100px) {
+    .timing {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
+        grid-template-areas:
+            "tower"
+            "best"
+            "pace";
+    }
+}

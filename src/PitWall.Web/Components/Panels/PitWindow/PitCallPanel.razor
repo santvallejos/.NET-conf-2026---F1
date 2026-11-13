@@ -1,0 +1,84 @@
+@using Microsoft.Extensions.Options
+@using PitWall.Strategy.PitWindow
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Services
+@implements IDisposable
+@inject PitWallSession Session
+@inject StrategyStore Strategies
+@inject IOptions<PitCallOptions> PitCallOptions
+
+@* Llamada a boxes (docs/ui.md §2 panel 14, docs/strategy-engine.md §4): solo lectura. Las posiciones perdidas se
+   calculan con el estado actual del replay y el pit loss del último cálculo de estrategia. *@
+@{
+    var view = Session.View;
+    var state = view.State;
+    var snapshot = state is null ? null : Strategies.Get(state.SessionKey, view.FocusDriver)?.Snapshot;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+    var pitLoss = snapshot?.PitLossSeconds ?? PitCallOptions.Value.DefaultPitLossSeconds;
+    var estimate = state is null ? null : PitCallCalculator.Estimate(state.Cars, view.FocusDriver, pitLoss, PitCallOptions.Value);
+}
+
+<section class="panel pit-call">
+    <header class="panel-header">
+        <h2>
+            Llamada a boxes
+            <span class="tag estimated" title="Cálculo determinista con gaps actuales; no simula el resto de la vuelta">ESTIMADO</span>
+        </h2>
+        <span class="panel-meta num">@(driver?.Acronym ?? $"#{view.FocusDriver}")</span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (estimate is null)
+    {
+        <p class="empty">El piloto foco no está en carrera.</p>
+    }
+    else
+    {
+        <table class="exits">
+            <thead>
+                <tr>
+                    <th>Si entra ahora</th>
+                    <th class="num" title="Tiempo que se pierde en boxes">Pit loss</th>
+                    <th class="num" title="Posición estimada al salir">Sale</th>
+                    <th class="num" title="Autos de atrás que lo pasan">Pierde</th>
+                </tr>
+            </thead>
+            <tbody>
+                @ExitRow("Normal", null, estimate.Normal)
+                @ExitRow("Bajo SC", "sc", estimate.SafetyCar)
+                @ExitRow("Bajo VSC", "vsc", estimate.Vsc)
+            </tbody>
+        </table>
+        <p class="hint num">Ahora P@(estimate.CurrentPosition) · pit loss @(snapshot?.PitLossSeconds is null ? "de configuración" : "medio de la sesión")</p>
+    }
+</section>
+
+@code {
+    private static RenderFragment ExitRow(string title, string? kind, PitExit exit) => __builder =>
+    {
+        <tr class="@kind">
+            <td>@title</td>
+            <td class="num">@RaceFormat.Number(exit.PitLossSeconds, "0.0") s</td>
+            <td class="num exit-position">P@(exit.ExitPosition)</td>
+            <td class="num lost @(exit.PositionsLost == 0 ? "none" : null)">@(exit.PositionsLost == 0 ? "0" : $"−{exit.PositionsLost}")</td>
+        </tr>
+    };
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnChanged;
+        Strategies.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Strategies.Changed -= OnChanged;
+    }
+
+    // La estrategia llega desde el worker aunque el replay esté en pausa.
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+}

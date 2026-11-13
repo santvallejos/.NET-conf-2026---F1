@@ -1,4 +1,4 @@
-@* Zona de la grilla de la charla: muestra un panel a la vez y pestañas si tiene más de uno. Solo el panel
+@* Zona de la grilla de una vista: muestra un panel a la vez y pestañas si tiene más de uno. Solo el panel
    activo queda montado, así los ocultos no se re-renderizan con cada estado del replay. *@
 
 <div class="zone" style="grid-area: @Area">
@@ -27,7 +27,7 @@
 @code {
     private int _active;
 
-    /// <summary>Nombre de la <c>grid-area</c> que ocupa la zona en <see cref="Layout.PitWallLayout"/>.</summary>
+    /// <summary>Nombre de la <c>grid-area</c> que ocupa la zona en su grilla (la de una vista del pit wall).</summary>
     [Parameter, EditorRequired]
     public string Area { get; set; } = "";
 

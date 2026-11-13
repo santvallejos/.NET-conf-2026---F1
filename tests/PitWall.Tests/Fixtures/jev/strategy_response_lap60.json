@@ -1,6 +1,0 @@
-{
-  "pit_call": { "choice": "BOX", "probabilities": { "STAY_OUT": 0.09, "BOX": 0.84, "BOX_NEXT_LAP": 0.07 }, "confidence": 0.84 },
-  "compound": { "choice": "INTERMEDIATE", "probabilities": { "SOFT": 0.02, "MEDIUM": 0.02, "HARD": 0.01, "INTERMEDIATE": 0.9, "WET": 0.05 }, "confidence": 0.9 },
-  "pace_mode": { "choice": "MANAGE", "probabilities": { "PUSH": 0.2, "MANAGE": 0.7, "SAVE_TYRES": 0.1 }, "confidence": 0.7 },
-  "energy_mode": { "choice": "BALANCED", "probabilities": { "HARVEST": 0.15, "BALANCED": 0.75, "DEPLOY": 0.05, "OVERTAKE": 0.05 }, "confidence": 0.75 }
-}

@@ -9,13 +9,8 @@ Proyecto `tests/PitWall.Tests` (xUnit). Foco en lógica determinista. **Sin test
 | Degradación | Regresión recupera `deg` conocido de datos sintéticos; exclusión de out-lap/vuelta 1/outliers; fallback con < 4 vueltas | unit |
 | Vida restante | Cálculo de cliff con `CliffDeltaSeconds` | unit |
 | Energía | SoC acotado `[0, cap]`; harvest en frenada; deploy a full throttle; `OvertakeAvailable` con interval < 1 s y sin "OVERTAKE DISABLED" | unit |
-| Reglas | Cada restricción de [strategy-engine.md](strategy-engine.md) §3.1; generación de cada `Reason` | unit |
-| Monte Carlo | Misma semilla → mismo resultado; distribución suma 1; estrategia obviamente mejor gana (ej. pinchazo → BOX) | unit |
-| Escenarios | Cada uno de los 8 eventos modifica MC/reglas como se documenta; `Hypothetical = true` | unit |
-| Jev — mapeo | `JevResponse` → `JevDecision`; opciones prohibidas no se envían; confidence = mínimo | unit |
-| Jev — guardas | `Enabled=false` no llama; caché hit no llama; `MaxRequestsPerSession` corta; costo calculado | unit (con `FakeJevClient` + contador) |
-| Jev — serialización | Request JSON coincide con fixture esperado (snapshot) | unit |
-| Decisión real equipo | `stints` + `pit` → BOX en vuelta correcta + compuesto | unit |
+| Cálculo por piloto | Modelo de gomas del stint (propio o fallback), energía, pit loss de la sesión o de configuración | unit |
+| Llamada a boxes | Posición al salir y posiciones perdidas normal/SC/VSC; auto sin intervalo corta la cuenta; pit loss de la sesión sobre el estado real | unit |
 | Ingesta | Respuestas OpenF1 grabadas (fixtures JSON) → filas esperadas en SQLite en memoria; idempotencia | integración |
 | Replay | Saltar a vuelta N produce el `RaceState` esperado | integración (SQLite en memoria) |
 
@@ -30,19 +25,14 @@ tests/PitWall.Tests/Fixtures/openf1/
   race_control_11412.json
   weather_11412.json
   car_data_11412_43_sample.json   (ventana corta)
-tests/PitWall.Tests/Fixtures/jev/
-  strategy_request_lap60.json
-  strategy_response_lap60.json
-  triage_response.json
 ```
 
-Fixtures de OpenF1 se graban una vez con la CLI (`--record-fixtures`). Fixtures de Jev se escriben a mano según la forma documentada en [jev.md](jev.md) y se actualizan al validar contra la API real.
+Fixtures de OpenF1 se graban una vez con la CLI (`--record-fixtures`).
 
 ## 3. Reglas
 
-- Ningún test llama a OpenF1 ni a Jev real.
+- Ningún test llama a OpenF1 real.
 - `HttpClient` falso vía `HttpMessageHandler` stub.
-- Monte Carlo en tests: `Iterations = 1000`, semilla fija.
 - `TimeProvider` (FakeTimeProvider) para el reloj del replay.
 
 ## 4. Ejecución
@@ -55,7 +45,5 @@ dotnet test
 
 1. Ingesta completa de 11412 sin errores; conteos ≈ [data-openf1.md](data-openf1.md).
 2. Replay completo x20 sin excepciones.
-3. Carrera completa con `Jev:Client=Real`: costo en Aspire < US$0,05.
-4. Segunda pasada idéntica: 100% caché, costo adicional $0.
-5. Guion de [scenarios.md](scenarios.md) §5 de punta a punta.
-6. Desconectar red: todo funciona salvo Jev real (alerta visible).
+3. Guion de [spec.md](spec.md) §7.1 de punta a punta.
+4. Desconectar red: todo sigue funcionando (la demo es 100% offline).

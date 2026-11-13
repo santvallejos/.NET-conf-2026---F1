@@ -15,9 +15,8 @@ public sealed class PitWallDbContextTests : IDisposable
 
     private static readonly string[] SchemaTables =
     [
-        "CarData", "Driver", "IngestedSession", "InjectedEvent", "Interval", "JevCache", "JevDecisionLog",
-        "Lap", "Location", "Overtake", "PitStop", "Position", "RaceControl", "Scenario", "SessionResult",
-        "StartingGrid", "Stint", "TeamRadio", "Weather",
+        "CarData", "Driver", "IngestedSession", "Interval", "Lap", "Location", "Overtake", "PitStop",
+        "Position", "RaceControl", "SessionResult", "StartingGrid", "Stint", "TeamRadio", "Weather",
     ];
 
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
@@ -41,7 +40,7 @@ public sealed class PitWallDbContextTests : IDisposable
     }
 
     [Fact]
-    public void HasPendingModelChanges_AfterInitialMigration_ReturnsFalse()
+    public void HasPendingModelChanges_AfterAllMigrations_ReturnsFalse()
     {
         using var context = CreateContext();
 
@@ -197,39 +196,6 @@ public sealed class PitWallDbContextTests : IDisposable
             X = -1520,
             Y = 830,
             Z = 12,
-        });
-
-        var scenario = new Scenario { SessionKey = SessionKey, Name = "Safety car vuelta 30", CreatedAt = RaceStart };
-        AssertRoundTrip(scenario);
-        AssertRoundTrip(new InjectedEvent
-        {
-            ScenarioId = scenario.Id,
-            Lap = 30,
-            Type = "SafetyCar",
-            Params = """{"lap":30,"durationLaps":4}""",
-            CreatedAt = RaceStart,
-        });
-        AssertRoundTrip(new JevDecisionLog
-        {
-            SessionKey = SessionKey,
-            ScenarioId = scenario.Id,
-            DriverNumber = 43,
-            Lap = 30,
-            Kind = JevKind.Strategy,
-            StateHash = "abc123",
-            RequestJson = "{}",
-            ResponseJson = "{}",
-            LatencyMs = 850,
-            Tokens = 1200,
-            CostUsd = 0.0042,
-            CreatedAt = RaceStart,
-        });
-        AssertRoundTrip(new JevCache
-        {
-            StateHash = "abc123",
-            Kind = JevKind.Triage,
-            ResponseJson = "{}",
-            CreatedAt = RaceStart,
         });
     }
 

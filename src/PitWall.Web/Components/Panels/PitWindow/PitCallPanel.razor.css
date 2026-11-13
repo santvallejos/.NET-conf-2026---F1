@@ -1,0 +1,67 @@
+.tag {
+    margin-left: 0.5rem;
+    padding: 0 0.35rem;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    vertical-align: middle;
+}
+
+.tag.estimated {
+    color: var(--pw-flag-sc);
+}
+
+.exits {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--pw-border);
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+td {
+    padding: 0.35rem 0.5rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+th.num,
+td.num {
+    text-align: right;
+}
+
+tr.sc td:first-child {
+    box-shadow: inset 3px 0 0 var(--pw-flag-sc);
+}
+
+tr.vsc td:first-child {
+    box-shadow: inset 3px 0 0 var(--pw-flag-yellow);
+}
+
+.exit-position {
+    font-weight: 800;
+}
+
+.lost {
+    color: var(--pw-flag-red);
+    font-weight: 700;
+}
+
+.lost.none {
+    color: var(--pw-flag-green);
+}
+
+.hint {
+    margin: 0.4rem 0 0;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}

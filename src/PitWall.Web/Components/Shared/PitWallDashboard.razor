@@ -1,34 +1,32 @@
 @using PitWall.Web.Components.Panels.Controls
 @using PitWall.Web.Components.Panels.Radio
+@using PitWall.Web.Components.Shared.Views
 
-@* Pantalla única de la charla; es la raíz interactiva (los RenderFragment no cruzan el límite de render mode). *@
+@* Raíz interactiva de las 4 vistas: barra común y la vista activa. La vista inicial llega como ruta (un string)
+   porque los RenderFragment y los Type no cruzan el límite de render mode; después las pestañas la cambian acá
+   mismo (ViewTabs), sin navegación de Blazor, para no rearmar la barra común. *@
 <PitWallLayout>
     <TopBar>
         <FlagBar />
         <ReplayControls />
-        <RadioPlayer />
+        <div class="view-bar">
+            <ViewTabs Active="_view" OnSelect="view => _view = view" />
+            <div class="radio-slot">
+                <RadioPlayer />
+            </div>
+        </div>
     </TopBar>
     <ChildContent>
-        <PanelZone Area="left-top" Panels="LeftTop" />
-        <PanelZone Area="left-bottom" Panels="LeftBottom" />
-        <PanelZone Area="center-top" Panels="CenterTop" />
-        <PanelZone Area="center-bottom" Panels="CenterBottom" />
-        <PanelZone Area="right-top" Panels="RightTop" />
-        <PanelZone Area="right-bottom" Panels="RightBottom" />
-        <PanelZone Area="widget-center" Panels="WidgetCenter" />
-        <PanelZone Area="widget-right" Panels="WidgetRight" />
+        <DynamicComponent @key="_view" Type="_view.Component" />
     </ChildContent>
 </PitWallLayout>
 
 @code {
-    // Distribución de docs/ui.md §3; la inyección de eventos va como pestaña junto al mapa para que Monte Carlo y Jev
-    // queden a la vista al inyectar.
-    private static readonly PanelEntry[] LeftTop = [PanelCatalog.Tower];
-    private static readonly PanelEntry[] LeftBottom = [PanelCatalog.Map, PanelCatalog.Scenarios];
-    private static readonly PanelEntry[] CenterTop = [PanelCatalog.MonteCarlo];
-    private static readonly PanelEntry[] CenterBottom = [PanelCatalog.Tyres, PanelCatalog.Telemetry];
-    private static readonly PanelEntry[] RightTop = [PanelCatalog.Jev];
-    private static readonly PanelEntry[] RightBottom = [PanelCatalog.JevVsTeam, PanelCatalog.RaceControl];
-    private static readonly PanelEntry[] WidgetCenter = [PanelCatalog.Weather];
-    private static readonly PanelEntry[] WidgetRight = [PanelCatalog.Energy];
+    private ViewEntry _view = ViewCatalog.Timing;
+
+    /// <summary>Ruta de la vista activa (<see cref="ViewEntry.Route"/>); una desconocida muestra Timing.</summary>
+    [Parameter]
+    public string ViewRoute { get; set; } = "";
+
+    protected override void OnParametersSet() => _view = ViewCatalog.Find(ViewRoute) ?? ViewCatalog.Timing;
 }

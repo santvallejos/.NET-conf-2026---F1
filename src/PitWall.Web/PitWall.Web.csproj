@@ -4,7 +4,6 @@
     <ProjectReference Include="..\PitWall.Data\PitWall.Data.csproj" />
     <ProjectReference Include="..\PitWall.Replay\PitWall.Replay.csproj" />
     <ProjectReference Include="..\PitWall.Strategy\PitWall.Strategy.csproj" />
-    <ProjectReference Include="..\PitWall.Jev\PitWall.Jev.csproj" />
     <ProjectReference Include="..\PitWall.ServiceDefaults\PitWall.ServiceDefaults.csproj" />
   </ItemGroup>
 

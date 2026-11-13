@@ -33,9 +33,12 @@
         <svg class="map" viewBox="0 0 @F(data.Width) @F(data.Height)" role="img" aria-label="Mapa del circuito con la posición de los autos">
             <polyline class="track-edge" points="@data.Outline" />
             <polyline class="track" points="@data.Outline" />
-            @if (data.StartFinish is { } line)
+            @foreach (var sector in data.Sectors)
             {
-                <rect class="start-finish" x="@F(line.X - 6)" y="@F(line.Y - 6)" width="12" height="12" />
+                <g class="sector">
+                    <line x1="@F(sector.From.X)" y1="@F(sector.From.Y)" x2="@F(sector.To.X)" y2="@F(sector.To.Y)" />
+                    <text x="@F(sector.LabelAt.X)" y="@F(sector.LabelAt.Y)">@sector.Label</text>
+                </g>
             }
             @* El foco se dibuja último para quedar encima. *@
             @foreach (var car in data.Cars.OrderBy(car => car.DriverNumber == view.FocusDriver))

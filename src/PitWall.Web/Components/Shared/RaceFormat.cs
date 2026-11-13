@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using PitWall.Domain;
+using PitWall.Strategy.Timing;
 
 namespace PitWall.Web.Components.Shared;
 
@@ -18,6 +19,25 @@ public static class RaceFormat
         $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
 
     public static string TimeOfDay(DateTimeOffset date) => date.UtcDateTime.ToString("HH:mm:ss", CultureInfo.InvariantCulture);
+
+    /// <summary>Tiempo de sector en segundos con milésimas (<c>21.428</c>); guion sin dato.</summary>
+    public static string SectorTime(double? seconds) =>
+        seconds is { } value ? value.ToString("0.000", CultureInfo.InvariantCulture) : Missing;
+
+    /// <summary>Tiempo de vuelta <c>m:ss.fff</c> (o <c>ss.fff</c> bajo el minuto); guion sin dato.</summary>
+    public static string LapTime(double? seconds) =>
+        seconds is { } value
+            ? TimeSpan.FromSeconds(value).ToString(value >= 60 ? @"m\:ss\.fff" : @"ss\.fff", CultureInfo.InvariantCulture)
+            : Missing;
+
+    /// <summary>Clase global de color de timing (docs/ui.md §1: púrpura, verde, amarillo); <c>null</c> sin dato.</summary>
+    public static string? TimingClassName(TimingClass? timing) => timing switch
+    {
+        TimingClass.SessionBest => "timing-session-best",
+        TimingClass.PersonalBest => "timing-personal-best",
+        TimingClass.NoImprovement => "timing-no-improvement",
+        _ => null,
+    };
 
     public static string CompoundLetter(Compound compound) => compound switch
     {

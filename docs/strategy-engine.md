@@ -16,7 +16,7 @@ lap_time = base + deg · tyre_age + fuel_coef · laps_remaining + ε
 
 - `tyre_age = tyre_age_at_start + (lap − lap_start)`.
 - `fuel_coef`: corrección por masa de combustible (default 0,03 s/vuelta, configurable). Se aplica antes de la regresión para aislar `deg`.
-- Regresión lineal por mínimos cuadrados. `ε` = desvío residual → alimenta la varianza de Monte Carlo.
+- Regresión lineal por mínimos cuadrados. `ε` = desvío residual (σ en el panel de neumáticos).
 
 **Vueltas excluidas** (no limpias):
 - vuelta 1, `is_pit_out_lap`, vuelta de entrada a boxes,
@@ -45,83 +45,24 @@ Modelo simple por muestra (~3,7 Hz):
 
 Salida: `EnergyEstimate(SocPct, HarvestedLapMj, DeployedLapMj, OvertakeAvailable, IsEstimated)`.
 
-## 3. Motor de reglas
+## 3. (libre)
 
-Dos responsabilidades:
+El motor de reglas (`Reason`) se quitó con ADR-021: sus razones solo se mostraban en la timeline de Escenarios. El
+número queda libre para no romper las referencias a §4. El muro no recomienda una parada: la estrategia
+probabilística la lleva el estratega de cada piloto (ADR-020).
 
-### 3.1 Restricciones duras (`Constraint`)
-Eliminan estrategias candidatas antes de Monte Carlo y bloquean decisiones de Jev que las violen.
+## 4. Llamada a boxes (panel 14)
 
-| Regla | Efecto |
-|---|---|
-| Bandera roja | no `BOX` (cambio de gomas en parrilla según reglamento) |
-| Pit lane cerrado (Race Control) | no `BOX` |
-| Carrera en seco sin uso de compuesto húmedo | obligatorio ≥ 2 compuestos secos distintos antes del final |
-| Lluvia fuerte | descarta `SOFT`/`MEDIUM`/`HARD` |
-| Pista seca y sin lluvia prevista | descarta `WET` |
-| Pinchazo/daño de alerón inyectado | fuerza `BOX` |
+Estimación determinista de qué pasa si el piloto foco entra **ahora** (`PitWall.Strategy/PitWindow`,
+`PitCallCalculator`). Etiqueta **ESTIMADO**: usa los gaps del instante del replay y no simula el resto de la vuelta.
 
-### 3.2 Razones (`Reason`)
-Jev **no** devuelve razones. Las genera este motor a partir de los features. Enum cerrado:
+- **Pit loss normal** = media de `pit.lane_duration` de la sesión (paradas entre 0 y 60 s) o
+  `Strategy:PitCall:DefaultPitLossSeconds` si todavía hay menos de `Strategy:PitCall:MinPitSamples` paradas. Lo
+  calcula `StrategyCalculator` al cerrar cada vuelta (`StrategySnapshot.PitLossSeconds`).
+- **Bajo SC** = pit loss × `Strategy:PitCall:ScPitLossFactor`; **bajo VSC** = pit loss × `Strategy:PitCall:VscPitLossFactor`.
+- **Posiciones perdidas** = autos de atrás cuya diferencia acumulada con el foco (suma de `interval` desde el foco
+  hacia atrás) es menor que el pit loss. Un auto sin `interval` (doblado o sin dato) corta la cuenta.
+- **Posición al salir** = posición actual + posiciones perdidas. El último no pierde posiciones.
+- Siempre sobre el estado real del replay.
 
-```
-TYRE_DEG_HIGH, TYRE_CLIFF_NEAR, UNDERCUT_THREAT, OVERCUT_WINDOW,
-SC_DEPLOYED, VSC_DEPLOYED, RED_FLAG, RAIN_STARTING, RAIN_STOPPING,
-TRACK_DRYING, LOW_GRIP, TRAFFIC_ON_EXIT, CLEAR_AIR_ON_EXIT,
-ENERGY_LOW, OVERTAKE_AVAILABLE, PUNCTURE, WING_DAMAGE,
-RIVAL_INCIDENT, ERS_FAILURE, MANDATORY_COMPOUND_PENDING
-```
-
-## 4. Monte Carlo
-
-Proyecta el **resto de la carrera** desde la vuelta actual, miles de veces, para cada estrategia candidata. No modifica el replay.
-
-### 4.1 Estrategias candidatas
-Para el piloto foco, en la vuelta `L`:
-- `STAY_OUT` (hasta el próximo cliff o fin de carrera),
-- `BOX` en `L`, `L+1`, `L+2`, `L+3`,
-- × compuesto permitido por las restricciones.
-
-Típicamente 8–15 candidatas.
-
-### 4.2 Variables estocásticas por iteración
-
-| Variable | Distribución | Fuente |
-|---|---|---|
-| Ritmo por vuelta | Normal(`modelo deg`, `σ residual`) | regresión §1 |
-| Pit loss | Normal(media, σ) | `pit.lane_duration` reales de la sesión |
-| SC por vuelta | Bernoulli(`p_sc`) | prior configurable (default 0,02) |
-| VSC por vuelta | Bernoulli(`p_vsc`) | prior configurable (default 0,02) |
-| Lluvia | Markov 2 estados (seco/lluvia) | `weather` + mensajes "RISK OF RAIN x%" |
-| Adelantamiento | Bernoulli(f(gap, Δritmo, overtake mode)) | `overtakes` de la sesión |
-| Rivales | Misma dinámica con su propio modelo de deg | 18 pilotos restantes como tráfico |
-
-Eventos inyectados (ver [scenarios.md](scenarios.md)) se fijan como **ciertos** en la vuelta indicada en todas las iteraciones.
-
-### 4.3 Salida
-
-```csharp
-record StrategyOutcome(
-    string StrategyId,            // ej. "BOX_L+1_INTERMEDIATE"
-    PitCall Call, int? BoxLap, Compound? Compound,
-    double ExpectedPosition,
-    IReadOnlyDictionary<int,double> PositionDistribution, // P(posición final = k)
-    double PGainPositions,        // P(terminar mejor que ahora)
-    double PLosePositions,
-    double ExpectedRaceTimeDelta  // vs. mejor estrategia
-);
-```
-
-### 4.4 Rendimiento
-- N = 10.000 iteraciones por candidata (config `Strategy:MonteCarlo:Iterations`).
-- `Parallel.For` por candidata; RNG por hilo con semilla derivada (`seed ^ candidateIndex`) → determinista.
-- Objetivo: < 1 s por piloto por vuelta (RNF-03). Si no se cumple, bajar N antes de optimizar.
-
-## 5. Decisión real del equipo (para Jev vs equipo)
-
-Derivada de `stints` + `pit`:
-- `BOX` en la vuelta `lap_number` de cada `pit`.
-- Compuesto = `compound` del stint siguiente.
-- Resto de vueltas = `STAY_OUT`.
-
-`pace_mode` y `energy_mode` reales **no** son observables → el panel solo compara pit + compuesto.
+Solo lectura: no cambia el replay ni la estrategia. Tests en `tests/PitWall.Tests/Strategy/PitWindow`.

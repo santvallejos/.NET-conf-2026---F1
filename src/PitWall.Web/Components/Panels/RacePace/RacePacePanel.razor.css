@@ -1,0 +1,128 @@
+/* Sin overflow propio: el scroll es el de la zona (PanelZone), así el encabezado sticky queda fijo al bajar. */
+.race-pace {
+    container-type: inline-size;
+}
+
+.rival-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.rival-picker select {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.875rem;
+}
+
+.pace-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+th {
+    position: sticky;
+    z-index: 1;
+    padding: 0.2rem 0.4rem;
+    background: var(--pw-panel);
+    color: var(--pw-muted);
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+}
+
+/* Dos filas de encabezado fijas al hacer scroll. */
+thead tr.drivers th {
+    top: 0;
+}
+
+thead tr:not(.drivers) th {
+    top: 1.6rem;
+    border-bottom: 1px solid var(--pw-border);
+}
+
+.driver-head {
+    color: var(--pw-text);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.team-bar {
+    display: inline-block;
+    width: 4px;
+    height: 0.9rem;
+    margin-right: 0.4rem;
+    border-radius: 2px;
+    background: var(--team);
+    vertical-align: -0.1rem;
+}
+
+td {
+    padding: 0.2rem 0.4rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    white-space: nowrap;
+}
+
+th.num,
+td.num {
+    text-align: right;
+}
+
+.lap-number {
+    color: var(--pw-muted);
+    font-weight: 700;
+}
+
+.missing {
+    color: var(--pw-muted);
+}
+
+/* Columna Δ separa visualmente al foco del rival. */
+.delta {
+    border-right: 1px solid var(--pw-border);
+    border-left: 1px solid var(--pw-border);
+    color: var(--pw-muted);
+}
+
+.delta.faster {
+    color: var(--pw-flag-green);
+}
+
+.delta.slower {
+    color: var(--pw-flag-red);
+}
+
+.lap-tags {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tag {
+    padding: 0 0.25rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.tag.in,
+.tag.out {
+    border-color: var(--pw-text);
+    color: var(--pw-text);
+}
+
+.tag.neutral {
+    border-color: var(--pw-flag-sc);
+    color: var(--pw-flag-sc);
+}
+
+/* Panel angosto: sin sectores, queda vuelta, Δ, compuesto y marcas. */
+@container (max-width: 680px) {
+    .sector {
+        display: none;
+    }
+}

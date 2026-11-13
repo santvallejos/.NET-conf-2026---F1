@@ -1,8 +1,10 @@
+@using PitWall.Web.Components.Panels.Laps
 @using PitWall.Web.Components.Shared
-@inherits PitWallPanelBase
+@inherits LapTimingPanelBase
 
 @{
     var view = View;
+    var timing = Timing;
 }
 
 <section class="panel tower">
@@ -29,6 +31,10 @@
                     <th class="num">Int.</th>
                     <th>Neum.</th>
                     <th class="num" title="Paradas">Par.</th>
+                    <th class="num">S1</th>
+                    <th class="num">S2</th>
+                    <th class="num">S3</th>
+                    <th class="num" title="Última vuelta">Últ.</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,6 +42,7 @@
                 {
                     var driver = view.Drivers.GetValueOrDefault(car.DriverNumber);
                     var leader = car.Position == 1;
+                    var lastLap = timing?.Drivers.GetValueOrDefault(car.DriverNumber)?.LastLap;
                     <tr @key="car.DriverNumber"
                         class="@(car.DriverNumber == view.FocusDriver ? "focus" : null)"
                         style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")">
@@ -60,6 +67,10 @@
                             </div>
                         </td>
                         <td class="num">@view.PitStops.GetValueOrDefault(car.DriverNumber)</td>
+                        <td class="num @RaceFormat.TimingClassName(lastLap?.S1?.Class)">@RaceFormat.SectorTime(lastLap?.S1?.Seconds)</td>
+                        <td class="num @RaceFormat.TimingClassName(lastLap?.S2?.Class)">@RaceFormat.SectorTime(lastLap?.S2?.Seconds)</td>
+                        <td class="num @RaceFormat.TimingClassName(lastLap?.S3?.Class)">@RaceFormat.SectorTime(lastLap?.S3?.Seconds)</td>
+                        <td class="num @RaceFormat.TimingClassName(lastLap?.Lap.Class)">@RaceFormat.LapTime(lastLap?.Lap.Seconds)</td>
                     </tr>
                 }
             </tbody>

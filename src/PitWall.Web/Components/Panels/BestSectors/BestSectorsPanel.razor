@@ -1,0 +1,94 @@
+@using PitWall.Strategy.Timing
+@using PitWall.Web.Components.Panels.Laps
+@using PitWall.Web.Components.Shared
+@inherits LapTimingPanelBase
+
+@* Mejores sectores (docs/ui.md §2 panel 12): cinco rankings de la parrilla al instante del replay, en una sola tabla
+   con la posición compartida a la izquierda (así entran en media pantalla). El primero de cada ranking es el mejor
+   de la sesión (púrpura); la vuelta ideal es la suma de los mejores sectores propios. *@
+@{
+    var view = View;
+    var timing = Timing;
+}
+
+<section class="panel best-sectors">
+    <header class="panel-header">
+        <h2>Mejores sectores</h2>
+        @if (timing is not null)
+        {
+            <span class="panel-meta num">@timing.CompletedLaps vueltas</span>
+        }
+    </header>
+
+    @if (view.State is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (timing is null)
+    {
+        <p class="empty">Cargando vueltas…</p>
+    }
+    else
+    {
+        var rankings = Rankings(timing.Rankings);
+        var rows = rankings.Max(ranking => ranking.Entries.Count);
+        <table class="best-table">
+            <thead>
+                <tr>
+                    <th class="num">P</th>
+                    @foreach (var ranking in rankings)
+                    {
+                        <th>@ranking.Title</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @if (rows == 0)
+                {
+                    <tr><td colspan="6" class="empty">Sin vueltas completas todavía.</td></tr>
+                }
+                @for (var i = 0; i < rows; i++)
+                {
+                    var index = i;
+                    <tr @key="index">
+                        <td class="num pos">@(index + 1)</td>
+                        @foreach (var ranking in rankings)
+                        {
+                            if (index >= ranking.Entries.Count)
+                            {
+                                <td></td>
+                                continue;
+                            }
+
+                            var entry = ranking.Entries[index];
+                            var driver = view.Drivers.GetValueOrDefault(entry.DriverNumber);
+                            var gap = entry.Seconds - ranking.Entries[0].Seconds;
+                            <td class="entry @(entry.DriverNumber == view.FocusDriver ? "focus" : null)"
+                                style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")"
+                                title="@($"{driver?.FullName ?? $"#{entry.DriverNumber}"} · {(index == 0 ? "mejor de la sesión" : RaceFormat.Gap(gap))}")">
+                                <span class="team-bar"></span>
+                                <span class="acronym">@(driver?.Acronym ?? $"#{entry.DriverNumber}")</span>
+                                <span class="num time @(index == 0 ? "timing-session-best" : null)">
+                                    @(ranking.IsLap ? RaceFormat.LapTime(entry.Seconds) : RaceFormat.SectorTime(entry.Seconds))
+                                </span>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private sealed record Ranking(string Title, IReadOnlyList<TimingRankEntry> Entries, bool IsLap);
+
+    private static Ranking[] Rankings(TimingRankings rankings) =>
+    [
+        new("S1", rankings.BestS1, false),
+        new("S2", rankings.BestS2, false),
+        new("S3", rankings.BestS3, false),
+        new("Vuelta", rankings.BestLap, true),
+        new("Ideal", rankings.IdealLap, true),
+    ];
+}

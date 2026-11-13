@@ -43,19 +43,10 @@ public sealed class PitWallDbContext(DbContextOptions<PitWallDbContext> options)
 
     public DbSet<Location> Locations => Set<Location>();
 
-    public DbSet<Scenario> Scenarios => Set<Scenario>();
-
-    public DbSet<InjectedEvent> InjectedEvents => Set<InjectedEvent>();
-
-    public DbSet<JevDecisionLog> JevDecisionLog => Set<JevDecisionLog>();
-
-    public DbSet<JevCache> JevCache => Set<JevCache>();
-
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Properties<DateTimeOffset>().HaveConversion<UtcDateTimeOffsetConverter>();
         configurationBuilder.Properties<Compound>().HaveConversion<CompoundConverter>();
-        configurationBuilder.Properties<JevKind>().HaveConversion<string>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -151,38 +142,6 @@ public sealed class PitWallDbContext(DbContextOptions<PitWallDbContext> options)
         {
             entity.ToTable(nameof(Location));
             entity.HasKey(e => new { e.SessionKey, e.DriverNumber, e.Date });
-        });
-
-        modelBuilder.Entity<Scenario>(entity =>
-        {
-            entity.ToTable(nameof(Scenario));
-            entity.HasKey(e => e.Id);
-        });
-
-        modelBuilder.Entity<InjectedEvent>(entity =>
-        {
-            entity.ToTable(nameof(InjectedEvent));
-            entity.HasKey(e => e.Id);
-            entity.HasOne<Scenario>()
-                .WithMany()
-                .HasForeignKey(e => e.ScenarioId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<JevDecisionLog>(entity =>
-        {
-            entity.ToTable(nameof(JevDecisionLog));
-            entity.HasKey(e => e.Id);
-            entity.HasOne<Scenario>()
-                .WithMany()
-                .HasForeignKey(e => e.ScenarioId)
-                .OnDelete(DeleteBehavior.SetNull);
-        });
-
-        modelBuilder.Entity<JevCache>(entity =>
-        {
-            entity.ToTable(nameof(JevCache));
-            entity.HasKey(e => e.StateHash);
         });
     }
 }

@@ -19,6 +19,9 @@
     --pw-tyre-hard: #f2f2f2;
     --pw-tyre-intermediate: #2fd15a;
     --pw-tyre-wet: #2f7dff;
+    --pw-timing-session-best: #c06bff;
+    --pw-timing-personal-best: #1fd15a;
+    --pw-timing-no-improvement: #ffd21f;
     --pw-temp-track: #ff8a3d;
     --pw-temp-air: #6ec8ff;
     --pw-font: "Segoe UI", "Inter", system-ui, sans-serif;
@@ -121,6 +124,30 @@ input:disabled {
 .empty {
     margin: 0.5rem 0;
     color: var(--pw-muted);
+}
+
+/* Colores de timing de sectores y vueltas (docs/ui.md §1): los usan torre, mejores sectores y ritmo de carrera */
+.timing-session-best {
+    color: var(--pw-timing-session-best);
+    font-weight: 700;
+}
+
+.timing-personal-best {
+    color: var(--pw-timing-personal-best);
+    font-weight: 700;
+}
+
+.timing-no-improvement {
+    color: var(--pw-timing-no-improvement);
+}
+
+/* Grilla de una vista del pit wall; cada vista define sus columnas y áreas */
+.view-grid {
+    display: grid;
+    flex: 1;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 0;
 }
 
 /* Compuestos: SOFT rojo, MEDIUM amarillo, HARD blanco, INTERMEDIATE verde, WET azul */

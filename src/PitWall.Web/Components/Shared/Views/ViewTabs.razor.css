@@ -1,0 +1,49 @@
+.view-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+.view-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.8rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 3px;
+    background: var(--pw-panel);
+    color: var(--pw-muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.view-tab:hover {
+    border-color: var(--pw-accent);
+    color: var(--pw-text);
+}
+
+.view-tab.active {
+    border-color: var(--pw-accent);
+    color: var(--pw-text);
+    box-shadow: inset 0 -3px 0 var(--pw-accent);
+}
+
+.key {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 2px;
+    color: var(--pw-muted);
+    font-size: 0.8rem;
+}
+
+.view-tab.active .key {
+    border-color: var(--pw-accent);
+    color: var(--pw-accent);
+}
