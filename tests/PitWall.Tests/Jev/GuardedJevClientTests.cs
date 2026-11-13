@@ -140,6 +140,78 @@ public sealed class GuardedJevClientTests : IDisposable
     }
 
     [Fact]
+    public async Task SystemOneAsync_ManyCacheHits_DoNotConsumeBudget()
+    {
+        _options.CurrentValue.MaxRequestsPerSession = 2;
+        var client = CreateClient();
+
+        await client.SystemOneAsync(JevTestRequests.StrategyLap60(), CancellationToken.None);
+        for (var i = 0; i < 10; i++)
+        {
+            Assert.True((await client.SystemOneAsync(JevTestRequests.StrategyLap60(), CancellationToken.None)).FromCache);
+        }
+
+        var next = await client.SystemOneAsync(JevTestRequests.StrategyForLap(61), CancellationToken.None);
+
+        Assert.Equal(JevResponseStatus.Answered, next.Status);
+        Assert.Equal(2, _inner.Calls);
+        Assert.Equal(2, client.RequestCount(JevTestRequests.SessionKey));
+    }
+
+    [Fact]
+    public async Task SystemOneAsync_NewReplaySession_StartsWithCounterAtZero()
+    {
+        _options.CurrentValue.MaxRequestsPerSession = 1;
+        var client = CreateClient();
+        var otherSession = JevTestRequests.SessionKey + 1;
+
+        await client.SystemOneAsync(JevTestRequests.StrategyForLap(1), CancellationToken.None);
+        await client.SystemOneAsync(JevTestRequests.StrategyForLap(2) with { SessionKey = otherSession }, CancellationToken.None);
+
+        Assert.Equal(0, client.RequestCount(JevTestRequests.SessionKey));
+        Assert.Equal(1, client.RequestCount(otherSession));
+    }
+
+    [Fact]
+    public async Task SystemOneAsync_SessionReloadedAfterLimit_CallsAgainAndClearsAlert()
+    {
+        _options.CurrentValue.MaxRequestsPerSession = 1;
+        var client = CreateClient();
+        var raised = new List<JevAlert>();
+        _alerts.Raised += raised.Add;
+
+        await client.SystemOneAsync(JevTestRequests.StrategyForLap(1), CancellationToken.None);
+        var limited = await client.SystemOneAsync(JevTestRequests.StrategyForLap(2), CancellationToken.None);
+        await client.SystemOneAsync(JevTestRequests.StrategyForLap(3) with { SessionKey = JevTestRequests.SessionKey + 1 }, CancellationToken.None);
+        var reloaded = await client.SystemOneAsync(JevTestRequests.StrategyForLap(2), CancellationToken.None);
+
+        Assert.Equal(JevResponseStatus.RequestLimitReached, limited.Status);
+        Assert.Equal(JevResponseStatus.Answered, reloaded.Status);
+        Assert.Equal(1, client.RequestCount(JevTestRequests.SessionKey));
+        Assert.Equal(3, _inner.Calls);
+        Assert.Single(raised);
+        Assert.Empty(_alerts.Active);
+    }
+
+    [Fact]
+    public async Task SystemOneAsync_LimitReachedAgainAfterReload_RaisesAlertAgain()
+    {
+        _options.CurrentValue.MaxRequestsPerSession = 1;
+        var client = CreateClient();
+        var raised = new List<JevAlert>();
+        _alerts.Raised += raised.Add;
+
+        for (var pass = 0; pass < 2; pass++)
+        {
+            await client.SystemOneAsync(JevTestRequests.StrategyForLap(10 + pass), CancellationToken.None);
+            await client.SystemOneAsync(JevTestRequests.StrategyForLap(20 + pass), CancellationToken.None);
+            await client.SystemOneAsync(JevTestRequests.StrategyForLap(30 + pass) with { SessionKey = JevTestRequests.SessionKey + 1 }, CancellationToken.None);
+        }
+
+        Assert.Equal(2, raised.Count(a => a.SessionKey == JevTestRequests.SessionKey));
+    }
+
+    [Fact]
     public async Task SystemOneAsync_FakeClient_CostIsZeroAndLatencyMeasured()
     {
         var client = CreateClient(JevClientKind.Fake);

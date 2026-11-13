@@ -37,4 +37,13 @@ public sealed class JevAlerts
         Raised?.Invoke(alert);
         return true;
     }
+
+    /// <returns>true si la alerta estaba activa; desde ahí puede volver a emitirse.</returns>
+    public bool Resolve(JevAlertKind kind, int sessionKey)
+    {
+        lock (_lock)
+        {
+            return _active.RemoveAll(a => a.Kind == kind && a.SessionKey == sessionKey) > 0;
+        }
+    }
 }

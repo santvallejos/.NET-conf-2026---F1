@@ -10,6 +10,8 @@ namespace PitWall.Jev.Guards;
 /// Decorador de costo (docs/jev.md §5, ADR-012), en este orden: <c>Jev:Enabled</c>, caché por hash del
 /// request normalizado, corte en <c>Jev:MaxRequestsPerSession</c> y, si llama, medición de latencia,
 /// tokens y costo. Los fallos del cliente se convierten en alerta: nunca tumban la app.
+/// Solo las llamadas al cliente consumen presupuesto (las respuestas de caché no). El presupuesto es de la sesión
+/// de replay activa: un request de otra sesión la reemplaza y arranca con el contador en cero.
 /// </summary>
 public sealed partial class GuardedJevClient : IJevClient
 {
@@ -24,7 +26,8 @@ public sealed partial class GuardedJevClient : IJevClient
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<GuardedJevClient> _logger;
     private readonly Lock _budgetLock = new();
-    private readonly Dictionary<int, int> _requestsBySession = [];
+    private int? _activeSessionKey;
+    private int _requests;
 
     public GuardedJevClient(
         IJevClient inner,
@@ -54,12 +57,15 @@ public sealed partial class GuardedJevClient : IJevClient
         _logger = logger;
     }
 
-    /// <summary>Llamadas al cliente consumidas por la sesión (los aciertos de caché no cuentan).</summary>
+    /// <summary>
+    /// Llamadas al cliente consumidas por la sesión mientras es la activa (los aciertos de caché no cuentan);
+    /// 0 para cualquier otra.
+    /// </summary>
     public int RequestCount(int sessionKey)
     {
         lock (_budgetLock)
         {
-            return _requestsBySession.GetValueOrDefault(sessionKey);
+            return _activeSessionKey == sessionKey ? _requests : 0;
         }
     }
 
@@ -73,6 +79,8 @@ public sealed partial class GuardedJevClient : IJevClient
             return JevResponse.NotCalled(JevResponseStatus.Disabled);
         }
 
+        ActivateSession(request.SessionKey);
+
         var stateHash = JevSerializer.ComputeStateHash(request);
         if (options.Cache.Enabled)
         {
@@ -84,7 +92,7 @@ public sealed partial class GuardedJevClient : IJevClient
             }
         }
 
-        if (!TryConsumeBudget(request.SessionKey, options.MaxRequestsPerSession))
+        if (!TryConsumeBudget(options.MaxRequestsPerSession))
         {
             if (_alerts.Raise(new JevAlert(JevAlertKind.RequestLimitReached, request.SessionKey, _timeProvider.GetUtcNow())))
             {
@@ -122,17 +130,34 @@ public sealed partial class GuardedJevClient : IJevClient
         return response with { FromCache = false, LatencyMs = latencyMs, CostUsd = costUsd };
     }
 
-    private bool TryConsumeBudget(int sessionKey, int maxRequests)
+    // Cambio de sesión de replay: contador en cero y fuera la alerta de límite de la sesión que entra, por si ya
+    // estuvo activa antes y llegó al tope.
+    private void ActivateSession(int sessionKey)
     {
         lock (_budgetLock)
         {
-            var used = _requestsBySession.GetValueOrDefault(sessionKey);
-            if (used >= maxRequests)
+            if (_activeSessionKey == sessionKey)
+            {
+                return;
+            }
+
+            _activeSessionKey = sessionKey;
+            _requests = 0;
+        }
+
+        _alerts.Resolve(JevAlertKind.RequestLimitReached, sessionKey);
+    }
+
+    private bool TryConsumeBudget(int maxRequests)
+    {
+        lock (_budgetLock)
+        {
+            if (_requests >= maxRequests)
             {
                 return false;
             }
 
-            _requestsBySession[sessionKey] = used + 1;
+            _requests++;
             return true;
         }
     }
