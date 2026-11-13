@@ -11,6 +11,9 @@ public interface IPitWallClient
 
     Task OnPlaybackChanged(PlaybackState playback);
 
+    /// <summary>Piloto foco nuevo; el estado de los 4 pilotos ya está calculado, no hay recálculo.</summary>
+    Task OnFocusChanged(int driverNumber);
+
     /// <summary>Estrategia recién calculada de un piloto al cerrar una vuelta.</summary>
     Task OnStrategySnapshot(StrategySnapshot snapshot);
 

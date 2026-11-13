@@ -1,0 +1,90 @@
+@using System.Globalization
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+@inject RadioLibrary Radio
+
+@{
+    var view = View;
+    var state = view.State;
+    var playback = view.Playback;
+    var loaded = state is not null && Radio.IsLoaded(state.SessionKey);
+    // Como en vivo: solo aparecen los mensajes emitidos hasta el reloj del replay.
+    var clips = loaded ? Radio.Get(state!.SessionKey).Where(clip => clip.Date <= state.Clock).ToList() : [];
+    var selected = _selected is { } pick && state is not null && pick.SessionKey == state.SessionKey ? pick.Clip : null;
+}
+
+<div class="radio" aria-label="Radio de equipo">
+    <span class="label">Radio</span>
+
+    <div class="timeline" role="group" aria-label="Marcadores de radio en la carrera">
+        @if (playback.StartTime is { } start && playback.EndTime is { } end && end > start)
+        {
+            <span class="elapsed" style="@Width(Fraction(state?.Clock ?? start, start, end))"></span>
+            @foreach (var clip in clips)
+            {
+                var driver = view.Drivers.GetValueOrDefault(clip.DriverNumber);
+                var acronym = driver?.Acronym ?? $"#{clip.DriverNumber}";
+                var title = $"{acronym} · {Elapsed(clip.Date, start)}{(clip.Url is null ? " · mp3 no descargado" : null)}";
+                var classes = $"marker{(clip.DriverNumber == view.FocusDriver ? " focus" : null)}{(clip == selected ? " selected" : null)}";
+                <button type="button" @key="clip" class="@classes" disabled="@(clip.Url is null)"
+                        style="left: @Percent(Fraction(clip.Date, start, end)); --team: @(driver?.TeamColour ?? "var(--pw-muted)")"
+                        title="@title"
+                        aria-label="Radio de @acronym a los @Elapsed(clip.Date, start)"
+                        @onclick="() => Select(clip)"></button>
+            }
+        }
+    </div>
+
+    <div class="player">
+        @if (selected is { Url: { } url })
+        {
+            var driver = view.Drivers.GetValueOrDefault(selected.DriverNumber);
+            <span class="now num" style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")">
+                <span class="team-bar"></span>@(driver?.Acronym ?? $"#{selected.DriverNumber}") @Elapsed(selected.Date, playback.StartTime ?? selected.Date)
+            </span>
+            @* @key recrea el elemento para que autoplay arranque el mp3 nuevo. *@
+            <audio @key="url" src="@url" controls autoplay preload="auto"></audio>
+        }
+        else
+        {
+            <span class="hint">@(loaded ? $"{clips.Count} mensajes · click en un marcador" : "Sin radio")</span>
+        }
+    </div>
+</div>
+
+@code {
+    private (int SessionKey, RadioClip Clip)? _selected;
+    private int? _loadingSession;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // La sesión cambia desde los controles: los mensajes se cargan la primera vez que el panel la ve.
+        if (View.State is not { } state || Radio.IsLoaded(state.SessionKey) || _loadingSession == state.SessionKey)
+        {
+            return;
+        }
+
+        _loadingSession = state.SessionKey;
+        await Radio.LoadAsync(state.SessionKey);
+        _loadingSession = null;
+        StateHasChanged();
+    }
+
+    private void Select(RadioClip clip)
+    {
+        if (clip.Url is not null && View.State is { } state)
+        {
+            _selected = (state.SessionKey, clip);
+        }
+    }
+
+    private static double Fraction(DateTimeOffset date, DateTimeOffset start, DateTimeOffset end) =>
+        Math.Clamp((date - start) / (end - start), 0, 1);
+
+    private static string Percent(double fraction) => string.Create(CultureInfo.InvariantCulture, $"{fraction * 100:0.##}%");
+
+    private static string Width(double fraction) => $"width: {Percent(fraction)}";
+
+    private static string Elapsed(DateTimeOffset date, DateTimeOffset start) =>
+        date < start ? "previa" : RaceFormat.Elapsed(date - start);
+}

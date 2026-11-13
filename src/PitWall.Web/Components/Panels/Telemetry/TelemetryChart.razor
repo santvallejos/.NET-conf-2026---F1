@@ -1,0 +1,162 @@
+@using System.Globalization
+@using System.Text
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+@inject TelemetryService Telemetry
+
+@{
+    var view = View;
+    var state = view.State;
+    var loaded = state is not null && Telemetry.IsLoaded(state.SessionKey);
+    var data = loaded ? Telemetry.Get(view) : null;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+}
+
+<section class="panel telemetry" style="--team: @(driver?.TeamColour ?? "var(--pw-accent)")">
+    <header class="panel-header">
+        <h2>Telemetría</h2>
+        <span class="panel-meta">@(driver?.Acronym ?? $"#{view.FocusDriver}")</span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (!loaded)
+    {
+        <p class="empty">Cargando telemetría…</p>
+    }
+    else if (data is null)
+    {
+        <p class="empty">Sin telemetría (car_data) del piloto foco.</p>
+    }
+    else
+    {
+        var now = data.Now;
+        var chart = BuildChart(data);
+        <dl class="readings">
+            <div><dt>Velocidad</dt><dd class="num">@(now is { } speed ? Int(speed.Speed) : RaceFormat.Missing)<small>km/h</small></dd></div>
+            <div><dt>Acelerador</dt><dd class="num">@(now is { } throttle ? Int(Percent(throttle.Throttle)) : RaceFormat.Missing)<small>%</small></dd></div>
+            <div><dt>Freno</dt><dd class="num @(now?.Brake > 0 ? "braking" : null)">@(now is { } brake ? Int(Percent(brake.Brake)) : RaceFormat.Missing)<small>%</small></dd></div>
+            <div><dt>Marcha</dt><dd class="num">@(now is { } gear ? GearLabel(gear.Gear) : RaceFormat.Missing)</dd></div>
+            <div><dt>RPM</dt><dd class="num">@(now is { } rpm ? Int(rpm.Rpm) : RaceFormat.Missing)</dd></div>
+        </dl>
+
+        <div class="laps">
+            <span class="legend current">V@(data.Current.Lap) <span class="num">@LapTime(data.Current.Points.Count == 0 ? 0 : data.Current.Points[^1].ElapsedSeconds)</span></span>
+            @if (data.Best is { } best)
+            {
+                <span class="legend best">Mejor V@(best.Lap) <span class="num">@LapTime(best.LapTime ?? 0)</span></span>
+                <span class="delta num @(data.DeltaToBest switch { > 0 => "slower", <= 0 => "faster", _ => null })" title="Vuelta actual vs mejor a igual distancia recorrida">
+                    Δ @Delta(data.DeltaToBest)
+                </span>
+            }
+            else
+            {
+                <span class="legend best muted">Sin vuelta completa todavía</span>
+            }
+        </div>
+
+        <svg class="chart" viewBox="0 0 @F(Width) @F(chart.Height)" role="img" aria-label="Telemetría: vuelta actual vs mejor por distancia">
+            @foreach (var lane in chart.Lanes)
+            {
+                <g @key="lane.Label">
+                    <rect class="lane" x="@F(LabelWidth)" y="@F(lane.Top)" width="@F(Width - LabelWidth)" height="@F(LaneHeight)" />
+                    <text class="label" x="0" y="@F(lane.Top + (LaneHeight / 2) + 4)">@lane.Label</text>
+                    @if (lane.Best.Length > 0)
+                    {
+                        <polyline class="best" points="@lane.Best" />
+                    }
+                    <polyline class="current" points="@lane.Current" />
+                </g>
+            }
+        </svg>
+    }
+</section>
+
+@code {
+    private const double Width = 600;
+    private const double LabelWidth = 52;
+    private const double LaneHeight = 40;
+    private const double LaneGap = 6;
+
+    // Escalas fijas por canal para que las dos vueltas se comparen sobre el mismo eje.
+    private static readonly (string Label, double Max, Func<TelemetrySample, double> Value)[] Channels =
+    [
+        ("km/h", 360, sample => sample.Speed),
+        ("Acel.", 100, sample => sample.Throttle),
+        ("Freno", 100, sample => sample.Brake),
+        ("Marcha", 8, sample => sample.Gear),
+        ("RPM", 13500, sample => sample.Rpm),
+    ];
+
+    private int? _loadingSession;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // La sesión cambia desde los controles: la telemetría se carga la primera vez que el panel la ve.
+        if (View.State is not { } state || Telemetry.IsLoaded(state.SessionKey) || _loadingSession == state.SessionKey)
+        {
+            return;
+        }
+
+        _loadingSession = state.SessionKey;
+        await Telemetry.LoadAsync(state.SessionKey);
+        _loadingSession = null;
+        StateHasChanged();
+    }
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+
+    private static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static int Percent(int value) => Math.Clamp(value, 0, 100);
+
+    private static string GearLabel(int gear) => gear <= 0 ? "N" : Int(gear);
+
+    private static string Delta(double? delta) => delta is { } value
+        ? $"{(value >= 0 ? "+" : "−")}{RaceFormat.Number(Math.Abs(value), "0.000")}"
+        : RaceFormat.Missing;
+
+    private static string LapTime(double seconds)
+    {
+        var time = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return string.Create(CultureInfo.InvariantCulture, $"{(int)time.TotalMinutes}:{time.Seconds:00}.{time.Milliseconds:000}");
+    }
+
+    // Eje x: distancia desde el inicio de la vuelta, escalada a la más larga de las dos trazas.
+    private static Chart BuildChart(TelemetryPanelData data)
+    {
+        var maxDistance = Math.Max(1, Math.Max(data.Current.DistanceM, data.Best?.DistanceM ?? 0));
+        var lanes = new List<Lane>(Channels.Length);
+        for (var index = 0; index < Channels.Length; index++)
+        {
+            var (label, max, value) = Channels[index];
+            var top = index * (LaneHeight + LaneGap);
+            lanes.Add(new Lane(
+                label,
+                top,
+                Points(data.Current.Points, value, max, top, maxDistance),
+                data.Best is { } best ? Points(best.Points, value, max, top, maxDistance) : string.Empty));
+        }
+
+        return new Chart(lanes, (Channels.Length * (LaneHeight + LaneGap)) - LaneGap);
+    }
+
+    private static string Points(IReadOnlyList<TelemetryPoint> points, Func<TelemetrySample, double> value, double max, double top, double maxDistance)
+    {
+        var builder = new StringBuilder(points.Count * 12);
+        foreach (var point in points)
+        {
+            var x = LabelWidth + (point.DistanceM / maxDistance * (Width - LabelWidth));
+            var y = top + LaneHeight - (Math.Clamp(value(point.Sample), 0, max) / max * LaneHeight);
+            builder.Append(CultureInfo.InvariantCulture, $"{x:0.#},{y:0.#} ");
+        }
+
+        return builder.ToString();
+    }
+
+    private sealed record Chart(IReadOnlyList<Lane> Lanes, double Height);
+
+    private sealed record Lane(string Label, double Top, string Current, string Best);
+}

@@ -15,7 +15,7 @@ namespace PitWall.Web.Services;
 /// Sesión de replay activa, compartida por todos los paneles y por los clientes de <see cref="PitWallHub"/>.
 /// Recibe cada <see cref="RaceState"/> del replay, rearma <see cref="View"/>, avisa a los paneles con
 /// <see cref="Changed"/> y empuja el <see cref="RaceStateDelta"/> por el hub. Los controles (cargar sesión,
-/// play/pausa, velocidad, saltar a vuelta) pasan por acá tanto desde la UI como desde el hub.
+/// play/pausa, velocidad, saltar a vuelta, piloto foco) pasan por acá tanto desde la UI como desde el hub.
 /// </summary>
 public sealed class PitWallSession
 {
@@ -29,8 +29,8 @@ public sealed class PitWallSession
     private readonly IHubContext<PitWallHub, IPitWallClient> _hub;
     private readonly ILogger<PitWallSession> _logger;
     private readonly int? _defaultSessionKey;
-    private readonly int _focusDriver;
     private readonly Lock _gate = new();
+    private int _focusDriver;
     private IReadOnlyList<SessionInfo> _sessions = [];
     private SessionDetails? _details;
     private RaceState? _state;
@@ -57,6 +57,7 @@ public sealed class PitWallSession
         _logger = logger;
         _defaultSessionKey = options.Value.DefaultSessionKey;
         _focusDriver = options.Value.FocusDriver;
+        TrackedDrivers = [.. new[] { options.Value.FocusDriver }.Concat(options.Value.BackgroundDrivers).Distinct()];
         _view = BuildView();
     }
 
@@ -73,6 +74,12 @@ public sealed class PitWallSession
             }
         }
     }
+
+    /// <summary>
+    /// Pilotos elegibles como foco (<c>PitWall:FocusDriver</c> + <c>PitWall:BackgroundDrivers</c>): su estrategia y Jev
+    /// ya se calculan en segundo plano, así que cambiar de foco no recalcula nada (ADR-006).
+    /// </summary>
+    public IReadOnlyList<int> TrackedDrivers { get; }
 
     /// <summary>Lista las sesiones ingeridas y carga la configurada en <c>PitWall:DefaultSessionKey</c> (o la primera).</summary>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
@@ -180,6 +187,29 @@ public sealed class PitWallSession
         }
 
         return ControlAsync(() => _engine.JumpToLap(lap));
+    }
+
+    /// <summary>Cambia el piloto foco de todos los paneles; solo rearma <see cref="View"/> (ADR-006).</summary>
+    /// <exception cref="ArgumentOutOfRangeException">Piloto fuera de <see cref="TrackedDrivers"/>.</exception>
+    public async Task SetFocusDriverAsync(int driverNumber)
+    {
+        if (!TrackedDrivers.Contains(driverNumber))
+        {
+            throw new ArgumentOutOfRangeException(nameof(driverNumber), driverNumber, $"Focus driver must be one of: {string.Join(", ", TrackedDrivers)}.");
+        }
+
+        lock (_gate)
+        {
+            if (_focusDriver == driverNumber)
+            {
+                return;
+            }
+
+            _focusDriver = driverNumber;
+        }
+
+        RaiseChanged();
+        await _hub.Clients.All.OnFocusChanged(driverNumber);
     }
 
     /// <summary>Aplica un estado publicado por el replay y empuja su delta a los clientes del hub.</summary>

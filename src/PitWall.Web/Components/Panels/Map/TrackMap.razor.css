@@ -1,0 +1,64 @@
+.map {
+    display: block;
+    width: 100%;
+    max-height: 24rem;
+}
+
+.track-edge,
+.track {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.track-edge {
+    stroke: var(--pw-border);
+    stroke-width: 26;
+}
+
+.track {
+    stroke: var(--pw-surface);
+    stroke-width: 16;
+}
+
+.start-finish {
+    fill: var(--pw-text);
+}
+
+.car .dot {
+    fill: var(--pw-muted);
+    stroke: var(--team);
+    stroke-width: 5;
+}
+
+.car .tag {
+    fill: var(--pw-muted);
+    font-family: var(--pw-mono);
+    font-size: 38px;
+    font-weight: 700;
+}
+
+.car.selectable {
+    cursor: pointer;
+}
+
+.car.selectable:hover .dot {
+    fill: var(--pw-text);
+}
+
+.car.focus .dot {
+    fill: var(--team);
+    stroke: #fff;
+    stroke-width: 4;
+}
+
+.car.focus .halo {
+    fill: color-mix(in srgb, var(--team) 30%, transparent);
+    stroke: var(--team);
+    stroke-width: 3;
+}
+
+.car.focus .tag {
+    fill: #fff;
+    font-size: 44px;
+}

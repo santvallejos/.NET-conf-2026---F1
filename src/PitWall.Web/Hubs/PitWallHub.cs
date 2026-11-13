@@ -33,6 +33,7 @@ public sealed class PitWallHub(
         }
 
         await Clients.Caller.OnPlaybackChanged(session.View.Playback);
+        await Clients.Caller.OnFocusChanged(session.View.FocusDriver);
         await base.OnConnectedAsync();
     }
 
@@ -61,6 +62,13 @@ public sealed class PitWallHub(
 
     [HubMethodName("JumpToLap")]
     public Task JumpToLapAsync(int lap) => session.JumpToLapAsync(lap);
+
+    /// <summary>Pilotos elegibles como foco: los que se calculan en segundo plano.</summary>
+    public IReadOnlyList<int> GetTrackedDrivers() => session.TrackedDrivers;
+
+    /// <summary>Cambia el foco de todos los clientes; el nuevo llega por <c>OnFocusChanged</c>.</summary>
+    [HubMethodName("SetFocusDriver")]
+    public Task SetFocusDriverAsync(int driverNumber) => session.SetFocusDriverAsync(driverNumber);
 
     /// <summary>Decisiones de Jev de la sesión activa, de la más vieja a la más nueva.</summary>
     public IReadOnlyList<JevDecision> GetJevDecisions() =>

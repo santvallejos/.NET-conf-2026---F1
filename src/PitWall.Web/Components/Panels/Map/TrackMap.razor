@@ -1,0 +1,87 @@
+@using System.Globalization
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+@inject TrackMapService Map
+
+@{
+    var view = View;
+    var state = view.State;
+    var loaded = state is not null && Map.IsLoaded(state.SessionKey);
+    var data = loaded ? Map.Get(view) : null;
+}
+
+<section class="panel track-map">
+    <header class="panel-header">
+        <h2>Mapa</h2>
+        <span class="panel-meta">@(view.CurrentSession?.Circuit ?? RaceFormat.Missing)</span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (!loaded)
+    {
+        <p class="empty">Cargando posiciones…</p>
+    }
+    else if (data is null)
+    {
+        <p class="empty">Sin posiciones (location) en esta sesión.</p>
+    }
+    else
+    {
+        <svg class="map" viewBox="0 0 @F(data.Width) @F(data.Height)" role="img" aria-label="Mapa del circuito con la posición de los autos">
+            <polyline class="track-edge" points="@data.Outline" />
+            <polyline class="track" points="@data.Outline" />
+            @if (data.StartFinish is { } line)
+            {
+                <rect class="start-finish" x="@F(line.X - 6)" y="@F(line.Y - 6)" width="12" height="12" />
+            }
+            @* El foco se dibuja último para quedar encima. *@
+            @foreach (var car in data.Cars.OrderBy(car => car.DriverNumber == view.FocusDriver))
+            {
+                var driver = view.Drivers.GetValueOrDefault(car.DriverNumber);
+                var focus = car.DriverNumber == view.FocusDriver;
+                var selectable = !focus && Session.TrackedDrivers.Contains(car.DriverNumber);
+                <g @key="car.DriverNumber" class="car @(focus ? "focus" : null) @(selectable ? "selectable" : null)"
+                   style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")"
+                   @onclick="() => SelectAsync(car.DriverNumber, selectable)">
+                    <title>@(driver?.FullName ?? $"#{car.DriverNumber}")@(selectable ? " · click para enfocar" : null)</title>
+                    @if (focus)
+                    {
+                        <circle class="halo" cx="@F(car.Position.X)" cy="@F(car.Position.Y)" r="30" />
+                    }
+                    <circle class="dot" cx="@F(car.Position.X)" cy="@F(car.Position.Y)" r="@(focus ? "16" : "11")" />
+                    <text class="tag" x="@F(car.Position.X + 20)" y="@F(car.Position.Y - 16)">@(driver?.Acronym ?? $"#{car.DriverNumber}")</text>
+                </g>
+            }
+        </svg>
+        @if (data.Cars.Count == 0)
+        {
+            <p class="empty">Sin posición de los pilotos seguidos en este instante.</p>
+        }
+    }
+</section>
+
+@code {
+    private int? _loadingSession;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // La sesión cambia desde los controles: las posiciones se cargan la primera vez que el panel la ve.
+        if (View.State is not { } state || Map.IsLoaded(state.SessionKey) || _loadingSession == state.SessionKey)
+        {
+            return;
+        }
+
+        _loadingSession = state.SessionKey;
+        await Map.LoadAsync(state.SessionKey);
+        _loadingSession = null;
+        StateHasChanged();
+    }
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+
+    private Task SelectAsync(int driverNumber, bool selectable) =>
+        selectable ? Session.SetFocusDriverAsync(driverNumber) : Task.CompletedTask;
+}

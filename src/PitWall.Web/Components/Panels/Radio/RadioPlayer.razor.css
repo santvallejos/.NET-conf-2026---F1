@@ -1,0 +1,92 @@
+/* En la barra superior ocupa una fila completa: es la timeline del replay. */
+.radio {
+    display: flex;
+    flex-basis: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.label {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.timeline {
+    position: relative;
+    flex: 1;
+    min-width: 12rem;
+    height: 1.6rem;
+    border: 1px solid var(--pw-border);
+    border-radius: 3px;
+    background: var(--pw-panel);
+}
+
+.elapsed {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    border-right: 2px solid var(--pw-accent);
+    background: color-mix(in srgb, var(--pw-accent) 12%, transparent);
+    pointer-events: none;
+}
+
+.marker {
+    position: absolute;
+    top: 0.3rem;
+    width: 0.55rem;
+    height: 0.9rem;
+    padding: 0;
+    border: 1px solid #0b0d10;
+    border-radius: 2px;
+    background: var(--team);
+    transform: translateX(-50%);
+}
+
+.marker.focus {
+    top: 0.1rem;
+    height: 1.3rem;
+    outline: 1px solid #fff;
+}
+
+.marker.selected {
+    box-shadow: 0 0 0 2px var(--pw-accent);
+}
+
+.marker:disabled {
+    background: transparent;
+    border: 1px dashed var(--team);
+}
+
+.player {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 18rem;
+}
+
+.now {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.team-bar {
+    width: 4px;
+    height: 1rem;
+    border-radius: 2px;
+    background: var(--team);
+}
+
+audio {
+    height: 2rem;
+    max-width: 16rem;
+}
+
+.hint {
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}

@@ -1,0 +1,22 @@
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+
+@{
+    var view = View;
+}
+
+@* Cambia el foco de todos los paneles sin recalcular: los 4 pilotos ya se calculan en segundo plano (ADR-006). *@
+<div class="driver-selector" role="group" aria-label="Piloto foco">
+    <span class="label">Foco</span>
+    @foreach (var driverNumber in Session.TrackedDrivers)
+    {
+        var driver = view.Drivers.GetValueOrDefault(driverNumber);
+        var active = driverNumber == view.FocusDriver;
+        <button type="button" @key="driverNumber" class="driver @(active ? "active" : null)"
+                style="--team: @(driver?.TeamColour ?? "var(--pw-muted)")"
+                aria-pressed="@(active ? "true" : "false")" title="@(driver?.FullName ?? $"#{driverNumber}")"
+                @onclick="() => Session.SetFocusDriverAsync(driverNumber)">
+            <span class="team-bar"></span>@(driver?.Acronym ?? $"#{driverNumber}")
+        </button>
+    }
+</div>

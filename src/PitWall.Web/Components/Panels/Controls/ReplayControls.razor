@@ -48,6 +48,8 @@
         <button type="button" @onclick="() => JumpAsync((view.State?.LeaderLap ?? 0) + 1)" disabled="@(!loaded)" title="Vuelta siguiente">▶</button>
     </div>
 
+    <DriverSelector />
+
     <JevToggle />
 
     @if (view.Error is { } error)

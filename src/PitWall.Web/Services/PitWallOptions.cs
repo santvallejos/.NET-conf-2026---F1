@@ -7,6 +7,10 @@ public sealed class PitWallOptions
 {
     public const string SectionName = "PitWall";
 
+    /// <summary>Raíz de los mp3 de radio (<c>{RadioPath}/{session_key}/</c>); relativa a la raíz del repo.</summary>
+    [Required]
+    public string RadioPath { get; set; } = "data/radio";
+
     /// <summary>Sesión que se carga al arrancar si está ingerida; si no, se carga la primera disponible.</summary>
     [Range(1, int.MaxValue)]
     public int? DefaultSessionKey { get; set; }

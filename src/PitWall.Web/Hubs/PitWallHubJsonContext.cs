@@ -23,6 +23,8 @@ namespace PitWall.Web.Hubs;
 [JsonSerializable(typeof(InjectEventRequest))]
 [JsonSerializable(typeof(InjectedEvent))]
 [JsonSerializable(typeof(Guid))]
+[JsonSerializable(typeof(int))]
+[JsonSerializable(typeof(IReadOnlyList<int>))]
 public sealed partial class PitWallHubJsonContext : JsonSerializerContext
 {
 }

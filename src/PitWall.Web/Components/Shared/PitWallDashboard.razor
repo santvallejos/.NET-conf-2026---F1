@@ -2,9 +2,12 @@
 @using PitWall.Web.Components.Panels.Energy
 @using PitWall.Web.Components.Panels.Jev
 @using PitWall.Web.Components.Panels.JevVsTeam
+@using PitWall.Web.Components.Panels.Map
 @using PitWall.Web.Components.Panels.MonteCarlo
+@using PitWall.Web.Components.Panels.Radio
 @using PitWall.Web.Components.Panels.RaceControl
 @using PitWall.Web.Components.Panels.Scenarios
+@using PitWall.Web.Components.Panels.Telemetry
 @using PitWall.Web.Components.Panels.Tower
 @using PitWall.Web.Components.Panels.Tyres
 @using PitWall.Web.Components.Panels.Weather
@@ -14,13 +17,16 @@
     <TopBar>
         <FlagBar />
         <ReplayControls />
+        <RadioPlayer />
     </TopBar>
     <Left>
         <TimingTower />
+        <TrackMap />
     </Left>
     <Center>
         <MonteCarloPanel />
         <TyrePanel />
+        <TelemetryChart />
         <ScenarioInjector />
         <ScenarioTimeline />
     </Center>

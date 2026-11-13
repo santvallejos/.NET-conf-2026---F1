@@ -4,6 +4,9 @@ using PitWall.Replay;
 using PitWall.Web.Components;
 using PitWall.Web.Components.Panels.Energy;
 using PitWall.Web.Components.Panels.JevVsTeam;
+using PitWall.Web.Components.Panels.Map;
+using PitWall.Web.Components.Panels.Radio;
+using PitWall.Web.Components.Panels.Telemetry;
 using PitWall.Web.Components.Panels.Tyres;
 using PitWall.Web.Hubs;
 using PitWall.Web.Services;
@@ -23,6 +26,9 @@ builder.Services.AddPitWallStrategy(builder.Configuration);
 builder.Services.AddPitWallScenarios(builder.Configuration);
 builder.Services.AddPitWallJevWorker();
 builder.Services.AddPitWallJevVsTeam();
+builder.Services.AddPitWallTelemetry();
+builder.Services.AddPitWallMap();
+builder.Services.AddPitWallRadio();
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics.AddMeter(JevMetrics.MeterName, StrategyMetrics.MeterName));
 
@@ -43,6 +49,7 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapHub<PitWallHub>(PitWallHub.Route);
+app.MapPitWallRadio();
 
 app.MapDefaultEndpoints();
 

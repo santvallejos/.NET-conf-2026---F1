@@ -1,0 +1,9 @@
+@page "/panel/telemetry"
+@using PitWall.Web.Components.Panels.Telemetry
+
+<PageTitle>PitWall · Telemetría</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <TelemetryChart @rendermode="InteractiveServer" />
+</div>
