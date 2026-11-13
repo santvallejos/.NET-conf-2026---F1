@@ -13,6 +13,10 @@ public static class JevRequestFactory
     // TyreDegradationModel.NoCliff: la goma no degrada.
     private const int NoCliff = int.MaxValue;
 
+    // En un escenario la consigna avisa que es hipotético. Además separa la clave de caché de la carrera real
+    // aunque el escenario no tenga eventos vigentes y el state sea el mismo.
+    private const string HypotheticalNote = " This is a hypothetical what-if scenario, not the real race.";
+
     public static JevRequest Triage(string model, JevTriageInput input)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
@@ -71,11 +75,12 @@ public static class JevRequestFactory
             input.Injected,
             [.. snapshot.Outcomes.Take(input.TopOutcomes).Select(JevMonteCarloEntry.From)]);
 
+        var note = input.Hypothetical ? HypotheticalNote : string.Empty;
         var questions = new Dictionary<string, JevQuestion>(StringComparer.Ordinal);
-        AddChoice(questions, JevQuestionKeys.PitCall, "Decide the pit call for the focus car this lap.", JevContractNames.Of(JevAllowedOptions.PitCalls(snapshot.Constraints)));
-        AddChoice(questions, JevQuestionKeys.Compound, "Choose the compound to fit if the focus car pits.", JevContractNames.Of(JevAllowedOptions.Compounds(snapshot.Constraints)));
-        AddChoice(questions, JevQuestionKeys.PaceMode, "Choose the pace mode for the focus car this lap.", JevContractNames.Of(Enum.GetValues<PaceMode>()));
-        AddChoice(questions, JevQuestionKeys.EnergyMode, "Choose the energy mode for the focus car this lap.", JevContractNames.Of(JevAllowedOptions.EnergyModes(snapshot.Constraints)));
+        AddChoice(questions, JevQuestionKeys.PitCall, $"Decide the pit call for the focus car this lap.{note}", JevContractNames.Of(JevAllowedOptions.PitCalls(snapshot.Constraints)));
+        AddChoice(questions, JevQuestionKeys.Compound, $"Choose the compound to fit if the focus car pits.{note}", JevContractNames.Of(JevAllowedOptions.Compounds(snapshot.Constraints)));
+        AddChoice(questions, JevQuestionKeys.PaceMode, $"Choose the pace mode for the focus car this lap.{note}", JevContractNames.Of(Enum.GetValues<PaceMode>()));
+        AddChoice(questions, JevQuestionKeys.EnergyMode, $"Choose the energy mode for the focus car this lap.{note}", JevContractNames.Of(JevAllowedOptions.EnergyModes(snapshot.Constraints)));
 
         return new JevRequest(model, JevSerializer.SerializeState(state), questions)
         {

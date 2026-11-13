@@ -77,8 +77,12 @@ public sealed class PitWallHub(
     /// <summary>Configuración de Jev vigente, con los cambios en caliente aplicados.</summary>
     public JevSettings GetJevSettings() => JevSettings.From(jevOptions.CurrentValue);
 
-    /// <summary>"Consultar Jev": estrategia del piloto ahora, en cualquier modo; la decisión llega por <c>OnJevDecision</c>.</summary>
-    public void RequestJevStrategy(int driverNumber) => jevTriggers.RequestStrategy(driverNumber);
+    /// <summary>
+    /// "Consultar Jev": estrategia del piloto ahora, en cualquier modo; la decisión llega por <c>OnJevDecision</c>.
+    /// Con un escenario hipotético activo se consulta con su estrategia y la decisión es HIPOTÉTICA.
+    /// </summary>
+    public void RequestJevStrategy(int driverNumber) =>
+        jevTriggers.RequestStrategy(driverNumber, scenarios.View.Active is { IsReal: false } scenario ? scenario.Id : null);
 
     public JevSettings SetJevEnabled(bool enabled)
     {

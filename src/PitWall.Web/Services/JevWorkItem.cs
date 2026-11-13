@@ -12,7 +12,8 @@ internal abstract record JevWorkItem
     public sealed record RaceControl(RaceState State) : JevWorkItem;
 
     /// <summary>Botón "Consultar Jev".</summary>
-    public sealed record Manual(int DriverNumber) : JevWorkItem;
+    /// <param name="ScenarioId">Escenario hipotético activo al consultar; null = carrera real.</param>
+    public sealed record Manual(int DriverNumber, Guid? ScenarioId = null) : JevWorkItem;
 
     /// <summary>Evento inyectado: triage para cada piloto con Jev activo.</summary>
     /// <param name="EventId">Id del evento en el escenario, para ubicar las decisiones en su timeline.</param>

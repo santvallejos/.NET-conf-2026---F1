@@ -18,11 +18,14 @@ public sealed class JevTriggers
     internal ChannelReader<JevWorkItem> Reader => _channel.Reader;
 
     /// <summary>Fuerza la estrategia del piloto con su último cálculo, en cualquier modo.</summary>
-    public void RequestStrategy(int driverNumber)
+    /// <param name="scenarioId">
+    /// Escenario hipotético activo: se consulta con su estrategia y la decisión es hipotética. null = carrera real.
+    /// </param>
+    public void RequestStrategy(int driverNumber, Guid? scenarioId = null)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(driverNumber, 1);
 
-        Write(new JevWorkItem.Manual(driverNumber));
+        Write(new JevWorkItem.Manual(driverNumber, scenarioId));
     }
 
     /// <summary>Triage ante un evento inyectado; con <paramref name="scenarioId"/> la decisión es hipotética.</summary>

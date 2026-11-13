@@ -23,6 +23,7 @@ namespace PitWall.Web.Services;
 /// publica por <see cref="PitWallHub"/>. Lee la configuración en cada pedido, así que los cambios en caliente
 /// (<c>Jev:Enabled</c>, modo, vueltas, pilotos) aplican al siguiente. El triage de un evento inyectado en un escenario
 /// usa el estado y la estrategia hipotéticos de <see cref="ScenarioStrategyStore"/>; sus decisiones son hipotéticas.
+/// Lo mismo "Consultar Jev" con un escenario hipotético activo.
 /// </summary>
 public sealed partial class JevWorker(
     ReplayEngine engine,
@@ -99,7 +100,7 @@ public sealed partial class JevWorker(
     {
         JevWorkItem.StrategyCalculated calculated => OnLapCompletedAsync(calculated.Publication, cancellationToken),
         JevWorkItem.RaceControl raceControl => TriageRaceControlAsync(raceControl.State, cancellationToken),
-        JevWorkItem.Manual manual => ManualAsync(manual.DriverNumber, cancellationToken),
+        JevWorkItem.Manual manual => ManualAsync(manual, cancellationToken),
         JevWorkItem.Injected injected => TriageInjectedAsync(injected, cancellationToken),
         _ => Task.CompletedTask,
     };
@@ -108,20 +109,42 @@ public sealed partial class JevWorker(
     {
         var snapshot = publication.Result.Snapshot;
         return JevTriggerPolicy.OnLapCompleted(options.CurrentValue, snapshot.DriverNumber, snapshot.Lap) is { } trigger
-            ? StrategyAsync(publication, trigger, null, [], null, cancellationToken)
+            ? StrategyAsync(Source(publication, []), trigger, null, null, cancellationToken)
             : Task.CompletedTask;
     }
 
-    private async Task ManualAsync(int driverNumber, CancellationToken cancellationToken)
+    // Con un escenario hipotético se consulta con su estrategia: la decisión sale HIPOTÉTICA y el request (estado,
+    // Monte Carlo y eventos del escenario) no comparte clave de caché con el de la carrera real.
+    private async Task ManualAsync(JevWorkItem.Manual manual, CancellationToken cancellationToken)
     {
-        if (Volatile.Read(ref _latest) is not { } state
-            || strategies.GetPublication(state.SessionKey, driverNumber) is not { } publication)
+        var driverNumber = manual.DriverNumber;
+        if (Volatile.Read(ref _latest) is not { } state)
         {
             LogNoStrategy(driverNumber);
             return;
         }
 
-        await StrategyAsync(publication, JevTrigger.Manual, null, [], null, cancellationToken);
+        var real = RealSource(state.SessionKey, driverNumber, []);
+        var hypothetical = manual.ScenarioId is { } scenarioId
+            && hypotheticalStrategies.Get(state.SessionKey, scenarioId, driverNumber) is { } scenarioPublication
+                ? Source(scenarioPublication.Publication, scenarioPublication.Injected)
+                : null;
+        var activeEvents = manual.ScenarioId is { } id && hypotheticalStrategies.Effects(state.SessionKey, id).ActiveEvents.Count > 0;
+        if (JevStrategySource.Select(real, hypothetical, manual.ScenarioId is not null, activeEvents) is not { } source)
+        {
+            if (activeEvents)
+            {
+                LogNoHypotheticalStrategy(driverNumber);
+            }
+            else
+            {
+                LogNoStrategy(driverNumber);
+            }
+
+            return;
+        }
+
+        await StrategyAsync(source, JevTrigger.Manual, manual.ScenarioId, null, cancellationToken);
     }
 
     private async Task TriageRaceControlAsync(RaceState state, CancellationToken cancellationToken)
@@ -134,7 +157,7 @@ public sealed partial class JevWorker(
                 .ToList();
             if (messages.Count > 0)
             {
-                await TriageAsync(state, driverNumber, messages, [], null, strategies.GetPublication(state.SessionKey, driverNumber), [], null, cancellationToken);
+                await TriageAsync(state, driverNumber, messages, [], null, RealSource(state.SessionKey, driverNumber, []), null, cancellationToken);
             }
         }
     }
@@ -150,7 +173,7 @@ public sealed partial class JevWorker(
         {
             if (injected.ScenarioId is not { } scenarioId)
             {
-                await TriageAsync(state, driverNumber, [], [injected.Event], null, strategies.GetPublication(state.SessionKey, driverNumber), [injected.Event], injected.EventId, cancellationToken);
+                await TriageAsync(state, driverNumber, [], [injected.Event], null, RealSource(state.SessionKey, driverNumber, [injected.Event]), injected.EventId, cancellationToken);
                 continue;
             }
 
@@ -162,15 +185,13 @@ public sealed partial class JevWorker(
                 [],
                 [injected.Event],
                 scenarioId,
-                hypothetical?.Publication,
-                hypothetical?.Injected ?? [injected.Event],
+                hypothetical is null ? null : Source(hypothetical.Publication, hypothetical.Injected),
                 injected.EventId,
                 cancellationToken);
         }
     }
 
-    /// <param name="publication">Estrategia con la que se consulta si el triage da <c>ACT_NOW</c>.</param>
-    /// <param name="strategyInjected">Eventos inyectados que viajan en el state de esa estrategia.</param>
+    /// <param name="strategy">Estrategia con la que se consulta si el triage da <c>ACT_NOW</c>.</param>
     /// <param name="eventId">Evento inyectado que dispara el triage, para el timeline del escenario.</param>
     private async Task TriageAsync(
         RaceState state,
@@ -178,8 +199,7 @@ public sealed partial class JevWorker(
         IReadOnlyList<string> raceControl,
         IReadOnlyList<string> injected,
         Guid? scenarioId,
-        StrategyPublication? publication,
-        IReadOnlyList<string> strategyInjected,
+        JevStrategySource? strategy,
         int? eventId,
         CancellationToken cancellationToken)
     {
@@ -200,33 +220,33 @@ public sealed partial class JevWorker(
             driverNumber,
             car.Lap,
             JevTrigger.Triage,
-            publication?.Result.Snapshot.Reasons ?? []);
+            strategy?.Snapshot.Reasons ?? []);
         if (await DecideAsync(input, request, eventId, cancellationToken) is not { } triage
             || !JevTriggerPolicy.TriageTriggersStrategy(options.CurrentValue, triage))
         {
             return;
         }
 
-        if (publication is null)
+        if (strategy is null)
         {
             LogNoStrategy(driverNumber);
             return;
         }
 
-        await StrategyAsync(publication, JevTrigger.Triage, scenarioId, strategyInjected, eventId, cancellationToken);
+        await StrategyAsync(strategy, JevTrigger.Triage, scenarioId, eventId, cancellationToken);
     }
 
+    /// <param name="scenarioId">Escenario hipotético de <paramref name="source"/>; null = carrera real.</param>
     private async Task StrategyAsync(
-        StrategyPublication publication,
+        JevStrategySource source,
         JevTrigger trigger,
         Guid? scenarioId,
-        IReadOnlyList<string> injected,
         int? eventId,
         CancellationToken cancellationToken)
     {
         var current = options.CurrentValue;
-        var state = publication.State;
-        var snapshot = publication.Result.Snapshot;
+        var state = source.State;
+        var snapshot = source.Snapshot;
         if (!JevTriggerPolicy.IsDriverEnabled(current, snapshot.DriverNumber))
         {
             return;
@@ -242,8 +262,9 @@ public sealed partial class JevWorker(
                 snapshot,
                 sameSession && view.Playback.LapCount > 0 ? view.Playback.LapCount : snapshot.Lap,
                 sameSession ? RecentRaceControl(view.RaceControl, state.Clock, snapshot.DriverNumber) : [],
-                injected,
-                monteCarlo.Value.TopOutcomesToJev));
+                source.Injected,
+                monteCarlo.Value.TopOutcomesToJev,
+                Hypothetical: scenarioId is not null));
         var input = new JevDecisionInput(
             NewId(),
             state.SessionKey,
@@ -286,6 +307,12 @@ public sealed partial class JevWorker(
             .Reverse()
             .Select(message => message.Message)];
 
+    private JevStrategySource? RealSource(int sessionKey, int driverNumber, IReadOnlyList<string> injected) =>
+        strategies.GetPublication(sessionKey, driverNumber) is { } publication ? Source(publication, injected) : null;
+
+    private static JevStrategySource Source(StrategyPublication publication, IReadOnlyList<string> injected) =>
+        new(publication.State, publication.Result.Snapshot, injected);
+
     private Guid NewId() => Guid.CreateVersion7(timeProvider.GetUtcNow());
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Jev {Kind} ({Trigger}) for driver {DriverNumber} on lap {Lap}: confidence {Confidence}, cache {FromCache}, {LatencyMs} ms")]
@@ -296,6 +323,9 @@ public sealed partial class JevWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "No strategy calculated yet for driver {DriverNumber}; Jev strategy skipped")]
     private partial void LogNoStrategy(int driverNumber);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Hypothetical strategy for driver {DriverNumber} not calculated yet; Jev strategy skipped")]
+    private partial void LogNoHypotheticalStrategy(int driverNumber);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Jev work item {Item} failed")]
     private partial void LogProcessingFailed(Exception exception, string item);

@@ -8,6 +8,7 @@ namespace PitWall.Jev.Requests;
 /// <param name="RaceControl">Textos de los mensajes recientes de Race Control relevantes para el piloto.</param>
 /// <param name="Injected">Eventos inyectados del escenario.</param>
 /// <param name="TopOutcomes">Candidatas de Monte Carlo que viajan en el state (<c>Strategy:MonteCarlo:TopOutcomesToJev</c>).</param>
+/// <param name="Hypothetical">La consulta es sobre un escenario distinto de <c>Real</c>.</param>
 public sealed record JevStrategyInput(
     int SessionKey,
     RaceState State,
@@ -15,4 +16,5 @@ public sealed record JevStrategyInput(
     int LapsTotal,
     IReadOnlyList<string> RaceControl,
     IReadOnlyList<string> Injected,
-    int TopOutcomes);
+    int TopOutcomes,
+    bool Hypothetical = false);

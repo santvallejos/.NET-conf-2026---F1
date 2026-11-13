@@ -5,6 +5,7 @@
 @using PitWall.Jev.Guards
 @using PitWall.Jev.Serialization
 @using PitWall.Jev.Triggers
+@using PitWall.Strategy.Scenarios
 @using PitWall.Web.Components.Shared
 @using PitWall.Web.Services
 @implements IDisposable
@@ -12,6 +13,7 @@
 @inject JevDecisionStore Decisions
 @inject JevTriggers Triggers
 @inject JevAlerts Alerts
+@inject ScenarioService Scenarios
 @inject IOptionsMonitor<JevOptions> JevOptionsMonitor
 
 @{
@@ -25,6 +27,7 @@
     var latest = history.FirstOrDefault(decision => decision.Kind == JevKind.Strategy);
     var driverEnabled = JevTriggerPolicy.IsDriverEnabled(options, view.FocusDriver);
     var alerts = state is null ? [] : Alerts.Active.Where(alert => alert.SessionKey == state.SessionKey).ToList();
+    var scenario = ActiveHypothetical();
 }
 
 <section class="panel jev">
@@ -83,9 +86,13 @@
 
     <div class="actions">
         <button type="button" @onclick="Consult" disabled="@(state is null || !driverEnabled)"
-                title="Fuerza la estrategia de Jev ahora con el último cálculo del piloto, en cualquier modo">
+                title="Fuerza la estrategia de Jev ahora con el último cálculo del piloto, en cualquier modo; con un escenario activo, con su estrategia hipotética">
             Consultar Jev
         </button>
+        @if (scenario is not null)
+        {
+            <span class="hint">Escenario @scenario.Name: <span class="tag hypothetical">HIPOTÉTICO</span></span>
+        }
         @if (options.Enabled && !driverEnabled)
         {
             <span class="hint">Jev apagado para este piloto (Jev:Drivers).</span>
@@ -159,6 +166,7 @@
         Session.Changed += OnChanged;
         Decisions.Published += OnPublished;
         Alerts.Raised += OnAlert;
+        Scenarios.Changed += OnChanged;
         // El toggle de Controles o del hub cambia Jev:Enabled en caliente.
         _optionsSubscription = JevOptionsMonitor.OnChange(_ => OnChanged());
     }
@@ -168,10 +176,14 @@
         Session.Changed -= OnChanged;
         Decisions.Published -= OnPublished;
         Alerts.Raised -= OnAlert;
+        Scenarios.Changed -= OnChanged;
         _optionsSubscription?.Dispose();
     }
 
-    private void Consult() => Triggers.RequestStrategy(Session.View.FocusDriver);
+    // Con un escenario hipotético activo la consulta usa su estrategia y la decisión sale HIPOTÉTICA.
+    private void Consult() => Triggers.RequestStrategy(Session.View.FocusDriver, ActiveHypothetical()?.Id);
+
+    private Scenario? ActiveHypothetical() => Scenarios.View.Active is { IsReal: false } scenario ? scenario : null;
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 
