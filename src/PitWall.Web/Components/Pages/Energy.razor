@@ -1,0 +1,9 @@
+@page "/panel/energy"
+@using PitWall.Web.Components.Panels.Energy
+
+<PageTitle>PitWall · Energía</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <EnergyWidget @rendermode="InteractiveServer" />
+</div>

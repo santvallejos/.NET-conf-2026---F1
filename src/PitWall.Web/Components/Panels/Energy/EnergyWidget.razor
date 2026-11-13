@@ -1,0 +1,88 @@
+@using System.Globalization
+@using PitWall.Web.Components.Shared
+@inherits PitWallPanelBase
+@inject EnergyEstimateService Energy
+
+@{
+    var view = View;
+    var state = view.State;
+    var loaded = state is not null && Energy.IsLoaded(state.SessionKey);
+    var data = loaded ? Energy.Get(view) : null;
+    var estimate = data?.Estimate;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+}
+
+@* OpenF1 no expone ERS: todo lo que muestra este panel es un modelo desde car_data (ADR-013). *@
+<section class="panel energy">
+    <header class="panel-header">
+        <h2>Energía <span class="tag estimated" title="Modelo desde throttle/freno/velocidad; no es dato real de ERS">ESTIMADO</span></h2>
+        <span class="panel-meta">@(driver?.Acronym ?? $"#{view.FocusDriver}")</span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (!loaded)
+    {
+        <p class="empty">Cargando telemetría…</p>
+    }
+    else if (data is null)
+    {
+        <p class="empty">Sin datos del piloto foco.</p>
+    }
+    else
+    {
+        @if (estimate is null)
+        {
+            <p class="empty">Sin telemetría (car_data) del piloto foco.</p>
+        }
+        else
+        {
+            <div class="soc" role="meter" aria-label="Estado de carga estimado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@F(estimate.SocPct)">
+                <span class="soc-fill @(estimate.SocPct < 20 ? "low" : null)" style="@SocStyle(estimate.SocPct)"></span>
+                <span class="soc-label num">SoC @RaceFormat.Number(estimate.SocPct, "0")% · @RaceFormat.Number(data.SocMj, "0.00")/@RaceFormat.Number(data.CapacityMj, "0.0") MJ</span>
+            </div>
+            <dl class="readings">
+                <div><dt>Recup. V@(data.Lap)</dt><dd class="num harvest">+@RaceFormat.Number(estimate.HarvestedLapMj, "0.00") MJ</dd></div>
+                <div><dt>Despl. V@(data.Lap)</dt><dd class="num deploy">−@RaceFormat.Number(estimate.DeployedLapMj, "0.00") MJ</dd></div>
+                <div>
+                    <dt>@(data.PreviousLap is { } previous ? $"V{previous.Lap}" : "Vuelta ant.")</dt>
+                    <dd class="num">@PreviousLabel(data.PreviousLap)</dd>
+                </div>
+            </dl>
+        }
+
+        <div class="overtake @(data.OvertakeAvailable ? "available" : null)">
+            <span class="overtake-state">OVERTAKE @(data.OvertakeAvailable ? "DISPONIBLE" : data.OvertakeDisabled ? "DESHABILITADO" : "NO")</span>
+            <span class="num">int @(data.Interval is { } interval ? $"{RaceFormat.Number(interval, "0.000")} s" : RaceFormat.Missing)</span>
+        </div>
+    }
+</section>
+
+@code {
+    private int? _loadingSession;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // La sesión cambia desde los controles: la telemetría se carga la primera vez que el panel la ve.
+        if (View.State is not { } state || Energy.IsLoaded(state.SessionKey) || _loadingSession == state.SessionKey)
+        {
+            return;
+        }
+
+        _loadingSession = state.SessionKey;
+        await Energy.LoadAsync(state.SessionKey);
+        _loadingSession = null;
+        StateHasChanged();
+    }
+
+    private static string F(double value) => value.ToString("0.#", CultureInfo.InvariantCulture);
+
+    private static string SocStyle(double socPct) =>
+        string.Create(CultureInfo.InvariantCulture, $"width: {Math.Clamp(socPct, 0, 100):0.##}%");
+
+    private static string PreviousLabel(EnergyLapTotals? previous) => previous is null
+        ? RaceFormat.Missing
+        : $"+{RaceFormat.Number(previous.HarvestedMj, "0.00")} / −{RaceFormat.Number(previous.DeployedMj, "0.00")}";
+}

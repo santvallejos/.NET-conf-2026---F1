@@ -1,6 +1,8 @@
 @using PitWall.Web.Components.Panels.Controls
+@using PitWall.Web.Components.Panels.Energy
 @using PitWall.Web.Components.Panels.RaceControl
 @using PitWall.Web.Components.Panels.Tower
+@using PitWall.Web.Components.Panels.Tyres
 @using PitWall.Web.Components.Panels.Weather
 
 @* Pantalla única de la charla; es la raíz interactiva (los RenderFragment no cruzan el límite de render mode). *@
@@ -12,8 +14,12 @@
     <Left>
         <TimingTower />
     </Left>
+    <Center>
+        <TyrePanel />
+    </Center>
     <Right>
         <WeatherWidget />
+        <EnergyWidget />
         <RaceControlFeed />
     </Right>
 </PitWallLayout>
