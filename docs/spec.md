@@ -57,7 +57,7 @@ Se construye un *pit wall* (muro de boxes) que reproduce una carrera real con da
 | Max Verstappen | 3 | Red Bull Racing | `4781D7` | P2 |
 
 Hechos relevantes de la carrera real:
-- Largada con **INTERMEDIATE**; paso a **SOFT** en vueltas 15–18; vuelta a **INTERMEDIATE** en 62–63.
+- Largada con **INTERMEDIATE**; paso a **SOFT** en vueltas 15–18; vuelta a **INTERMEDIATE** en 62–63 (vueltas del líder; Alpine (43), a una vuelta, para en su vuelta 61).
 - Lluvia al final (18:26–18:43 UTC). "LOW GRIP" + "OVERTAKE DISABLED" al inicio y desde vuelta 62.
 - **No hubo SC, VSC ni bandera roja** → motivo de los eventos inyectables.
 
@@ -143,7 +143,7 @@ Detalle en [data-openf1.md](data-openf1.md).
 2. Replay salta a vuelta 60 y los paneles se actualizan coherentes.
 3. Cambiar a Verstappen es instantáneo.
 4. Inyectar SC en vuelta 40 → Jev devuelve decisión en < 1 s, marcada HIPOTÉTICO.
-5. Panel Jev vs equipo muestra la parada real de Alpine en vueltas 62–63 vs la llamada de Jev.
+5. Panel Jev vs equipo muestra la parada real de Alpine (BOX en su vuelta 61, INTERMEDIATE) vs la llamada de Jev.
 6. Contador de costo visible en Aspire y < US$0.05 tras una carrera completa.
 
 ## 8. Documentos relacionados
