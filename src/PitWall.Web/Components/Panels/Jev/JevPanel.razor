@@ -1,0 +1,218 @@
+@using System.Globalization
+@using Microsoft.Extensions.Options
+@using PitWall.Domain
+@using PitWall.Jev
+@using PitWall.Jev.Guards
+@using PitWall.Jev.Serialization
+@using PitWall.Jev.Triggers
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Services
+@implements IDisposable
+@inject PitWallSession Session
+@inject JevDecisionStore Decisions
+@inject JevTriggers Triggers
+@inject JevAlerts Alerts
+@inject IOptionsMonitor<JevOptions> JevOptionsMonitor
+
+@{
+    var view = Session.View;
+    var state = view.State;
+    var options = JevOptionsMonitor.CurrentValue;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+    var history = state is null
+        ? []
+        : Decisions.Get(state.SessionKey).Where(decision => decision.DriverNumber == view.FocusDriver).Reverse().ToList();
+    var latest = history.FirstOrDefault(decision => decision.Kind == JevKind.Strategy);
+    var driverEnabled = JevTriggerPolicy.IsDriverEnabled(options, view.FocusDriver);
+    var alerts = state is null ? [] : Alerts.Active.Where(alert => alert.SessionKey == state.SessionKey).ToList();
+}
+
+<section class="panel jev">
+    <header class="panel-header">
+        <h2>
+            Jev
+            @if (options.Client == JevClientKind.Fake)
+            {
+                <span class="tag fake" title="FakeJevClient: decisiones deterministas sin red, costo $0">FAKE</span>
+            }
+            @if (!options.Enabled)
+            {
+                <span class="tag off" title="Jev:Enabled = false; se activa desde Controles">OFF</span>
+            }
+        </h2>
+        <span class="panel-meta num">@(driver?.Acronym ?? $"#{view.FocusDriver}") · @ModeLabel(options.Mode)</span>
+    </header>
+
+    @foreach (var alert in alerts)
+    {
+        <p class="alert" role="alert">@AlertLabel(alert.Kind)</p>
+    }
+
+    <div class="latest">
+        @if (latest is null)
+        {
+            <p class="empty">@(state is null ? "Sin sesión cargada." : "Sin decisión de estrategia para este piloto todavía.")</p>
+        }
+        else
+        {
+            <div class="call">
+                <span class="pit">@Name(latest.PitCall)</span>
+                @if (IsBox(latest.PitCall) && latest.Compound is { } compound)
+                {
+                    <span class="tyre @RaceFormat.CompoundClass(compound)" title="@Name(latest.Compound)">@RaceFormat.CompoundLetter(compound)</span>
+                }
+                <span class="confidence num" title="Confianza (mínimo de las preguntas)">@Percent(latest.Confidence)</span>
+                @if (latest.FromCache)
+                {
+                    <span class="tag cache" title="Respuesta desde la caché por hash de estado: 0 llamadas">CACHÉ</span>
+                }
+                @if (latest.Hypothetical)
+                {
+                    <span class="tag hypothetical" title="Decisión sobre un escenario inyectado">HIPOTÉTICO</span>
+                }
+            </div>
+            <div class="detail num">
+                V@(latest.Lap) · @TriggerLabel(latest.Trigger) · ritmo @Name(latest.PaceMode) · energía @Name(latest.EnergyMode) · @latest.LatencyMs ms
+            </div>
+            @if (latest.Reasons.Count > 0)
+            {
+                <div class="reasons">@Reasons(latest)</div>
+            }
+        }
+    </div>
+
+    <div class="actions">
+        <button type="button" @onclick="Consult" disabled="@(state is null || !driverEnabled)"
+                title="Fuerza la estrategia de Jev ahora con el último cálculo del piloto, en cualquier modo">
+            Consultar Jev
+        </button>
+        @if (options.Enabled && !driverEnabled)
+        {
+            <span class="hint">Jev apagado para este piloto (Jev:Drivers).</span>
+        }
+    </div>
+
+    @if (history.Count > 0)
+    {
+        <div class="history">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="num">V</th>
+                        <th>Decisión</th>
+                        <th class="num" title="Confianza">Conf.</th>
+                        <th>Reasons</th>
+                        <th class="num" title="Latencia">Lat.</th>
+                        <th>Caché</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var decision in history.Take(MaxHistoryRows))
+                    {
+                        <tr @key="decision.Id" title="@TriggerLabel(decision.Trigger)">
+                            <td class="num">@decision.Lap</td>
+                            <td class="decision">
+                                @if (decision.Kind == JevKind.Strategy)
+                                {
+                                    <span>@Name(decision.PitCall)</span>
+                                    @if (IsBox(decision.PitCall) && decision.Compound is { } compound)
+                                    {
+                                        <span class="tyre small @RaceFormat.CompoundClass(compound)" title="@Name(decision.Compound)">@RaceFormat.CompoundLetter(compound)</span>
+                                    }
+                                    <span class="muted">@Name(decision.PaceMode) · @Name(decision.EnergyMode)</span>
+                                }
+                                else
+                                {
+                                    <span class="triage">TRIAGE</span>
+                                    <span>@Name(decision.Impact)</span>
+                                    <span class="muted">urg. @(decision.Urgency?.ToString(CultureInfo.InvariantCulture) ?? RaceFormat.Missing)</span>
+                                }
+                                @if (decision.Hypothetical)
+                                {
+                                    <span class="tag hypothetical">HIPOTÉTICO</span>
+                                }
+                            </td>
+                            <td class="num">@Percent(decision.Confidence)</td>
+                            <td class="reasons-cell">@Reasons(decision)</td>
+                            <td class="num">@decision.LatencyMs ms</td>
+                            <td>
+                                @if (decision.FromCache)
+                                {
+                                    <span class="tag cache">CACHÉ</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private const int MaxHistoryRows = 100;
+
+    private IDisposable? _optionsSubscription;
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnChanged;
+        Decisions.Published += OnPublished;
+        Alerts.Raised += OnAlert;
+        // El toggle de Controles o del hub cambia Jev:Enabled en caliente.
+        _optionsSubscription = JevOptionsMonitor.OnChange(_ => OnChanged());
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Decisions.Published -= OnPublished;
+        Alerts.Raised -= OnAlert;
+        _optionsSubscription?.Dispose();
+    }
+
+    private void Consult() => Triggers.RequestStrategy(Session.View.FocusDriver);
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Las decisiones y alertas llegan desde el worker de Jev aunque el replay esté en pausa.
+    private void OnPublished(JevDecision decision) => OnChanged();
+
+    private void OnAlert(JevAlert alert) => OnChanged();
+
+    // Jev siempre responde el compuesto; solo tiene sentido mostrarlo si la llamada es parar.
+    private static bool IsBox(PitCall? call) => call is PitCall.Box or PitCall.BoxNextLap;
+
+    private static string Name<TEnum>(TEnum? value)
+        where TEnum : struct, Enum =>
+        value is { } some ? JevContractNames.Of(some).Replace('_', ' ') : RaceFormat.Missing;
+
+    private static string Percent(double probability) => $"{RaceFormat.Number(probability * 100, "0")}%";
+
+    private static string Reasons(JevDecision decision) =>
+        decision.Reasons.Count == 0 ? RaceFormat.Missing : string.Join(" · ", decision.Reasons.Select(reason => JevContractNames.Of(reason)));
+
+    private static string ModeLabel(JevMode mode) => mode switch
+    {
+        JevMode.EveryLap => "cada vuelta",
+        JevMode.SpecificLaps => "vueltas fijas",
+        JevMode.Manual => "manual",
+        _ => mode.ToString(),
+    };
+
+    private static string TriggerLabel(JevTrigger trigger) => trigger switch
+    {
+        JevTrigger.EveryLap => "cada vuelta",
+        JevTrigger.SpecificLap => "vuelta fija",
+        JevTrigger.Manual => "manual",
+        JevTrigger.Triage => "por triage",
+        _ => trigger.ToString(),
+    };
+
+    private static string AlertLabel(JevAlertKind kind) => kind switch
+    {
+        JevAlertKind.RequestLimitReached => "Límite de requests de la sesión alcanzado (Jev:MaxRequestsPerSession): Jev no consulta más.",
+        JevAlertKind.ClientFailed => "Falló el cliente de Jev: la consulta no se respondió. La app sigue sin Jev.",
+        _ => kind.ToString(),
+    };
+}

@@ -3,6 +3,7 @@ using PitWall.Jev.Guards;
 using PitWall.Replay;
 using PitWall.Web.Components;
 using PitWall.Web.Components.Panels.Energy;
+using PitWall.Web.Components.Panels.JevVsTeam;
 using PitWall.Web.Components.Panels.Tyres;
 using PitWall.Web.Hubs;
 using PitWall.Web.Services;
@@ -20,6 +21,7 @@ builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddPitWallEnergy(builder.Configuration);
 builder.Services.AddPitWallStrategy(builder.Configuration);
 builder.Services.AddPitWallJevWorker();
+builder.Services.AddPitWallJevVsTeam();
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics.AddMeter(JevMetrics.MeterName, StrategyMetrics.MeterName));
 

@@ -1,0 +1,9 @@
+@page "/panel/jev"
+@using PitWall.Web.Components.Panels.Jev
+
+<PageTitle>PitWall · Jev</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <JevPanel @rendermode="InteractiveServer" />
+</div>

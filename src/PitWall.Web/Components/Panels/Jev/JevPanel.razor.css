@@ -1,0 +1,136 @@
+.jev {
+    min-height: 0;
+}
+
+.tag {
+    margin-left: 0.5rem;
+    padding: 0 0.35rem;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    vertical-align: middle;
+}
+
+.tag.fake { color: var(--pw-accent); }
+.tag.off { color: var(--pw-flag-red); }
+.tag.cache { color: var(--pw-temp-air); }
+.tag.hypothetical { color: var(--pw-flag-sc); }
+
+td .tag {
+    margin-left: 0.25rem;
+    font-size: 0.7rem;
+}
+
+.alert {
+    margin: 0 0 0.4rem;
+    padding: 0.25rem 0.5rem;
+    border-left: 3px solid var(--pw-flag-red);
+    background: var(--pw-surface);
+    color: var(--pw-flag-red);
+    font-size: 0.875rem;
+}
+
+.latest {
+    padding: 0.35rem 0;
+}
+
+.call {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.pit {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+
+.confidence {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.detail {
+    margin-top: 0.2rem;
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+}
+
+.reasons {
+    margin-top: 0.2rem;
+    font-size: 0.8rem;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.3rem 0 0.5rem;
+}
+
+.actions button {
+    font-weight: 700;
+}
+
+.hint,
+.muted {
+    color: var(--pw-muted);
+    font-size: 0.8rem;
+}
+
+.history {
+    max-height: 16rem;
+    overflow-y: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    background: var(--pw-panel);
+    color: var(--pw-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+th,
+td {
+    padding: 0.2rem 0.35rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    vertical-align: middle;
+}
+
+.decision {
+    white-space: nowrap;
+}
+
+.decision > span + span {
+    margin-left: 0.3rem;
+}
+
+.triage {
+    color: var(--pw-muted);
+    font-weight: 700;
+}
+
+.reasons-cell {
+    font-size: 0.75rem;
+}
+
+.tyre.small {
+    width: 1.2rem;
+    height: 1.2rem;
+    border-width: 2px;
+    font-size: 0.65rem;
+}

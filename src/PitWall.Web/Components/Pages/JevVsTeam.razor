@@ -1,0 +1,9 @@
+@page "/panel/jev-vs-team"
+@using PitWall.Web.Components.Panels.JevVsTeam
+
+<PageTitle>PitWall · Jev vs equipo</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <JevVsTeamPanel @rendermode="InteractiveServer" />
+</div>
