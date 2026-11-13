@@ -1,0 +1,150 @@
+@using System.Globalization
+@using PitWall.Domain
+@using PitWall.Web.Components.Shared
+@using PitWall.Web.Services
+@implements IDisposable
+@inject PitWallSession Session
+@inject StrategyStore Strategies
+
+@{
+    var view = Session.View;
+    var state = view.State;
+    var result = state is null ? null : Strategies.Get(state.SessionKey, view.FocusDriver);
+    var snapshot = result?.Snapshot;
+    var driver = view.Drivers.GetValueOrDefault(view.FocusDriver);
+    var cars = Math.Max(state?.Cars.Count ?? 0, 1);
+    var position = state?.Cars.FirstOrDefault(car => car.DriverNumber == view.FocusDriver)?.Position;
+}
+
+<section class="panel montecarlo">
+    <header class="panel-header">
+        <h2>Monte Carlo</h2>
+        <span class="panel-meta num">
+            @(driver?.Acronym ?? $"#{view.FocusDriver}")
+            @if (result is not null)
+            {
+                <span title="Vuelta proyectada · iteraciones por estrategia · tiempo de cálculo">
+                    · V@(result.Snapshot.Lap) · N=@result.Iterations.ToString("N0", Spanish) · @RaceFormat.Number(result.Duration.TotalMilliseconds, "0") ms
+                </span>
+            }
+        </span>
+    </header>
+
+    @if (state is null)
+    {
+        <p class="empty">Sin sesión cargada.</p>
+    }
+    else if (snapshot is null)
+    {
+        <p class="empty">Calculando… se proyecta el resto de la carrera al cerrar cada vuelta.</p>
+    }
+    else
+    {
+        @if (snapshot.Outcomes.Count == 0)
+        {
+            <p class="empty">Ninguna estrategia candidata cumple las restricciones.</p>
+        }
+        else
+        {
+            <table class="outcomes">
+                <thead>
+                    <tr>
+                        <th>Estrategia</th>
+                        <th class="num" title="Posición final esperada">Pos.</th>
+                        <th title="P(posición final = k), de P1 a P@(cars); la línea marca la posición actual">Distribución</th>
+                        <th class="num" title="P(terminar mejor que ahora)">Ganar</th>
+                        <th class="num" title="P(terminar peor que ahora)">Perder</th>
+                        <th class="num" title="Tiempo de carrera esperado respecto a la mejor estrategia">Δt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (outcome, index) in snapshot.Outcomes.Select((outcome, index) => (outcome, index)))
+                    {
+                        <tr @key="outcome.StrategyId" class="@(index == 0 ? "best" : null)" title="@outcome.StrategyId">
+                            <td>
+                                <div class="strategy">
+                                    @if (outcome.Compound is { } compound)
+                                    {
+                                        <span class="tyre @RaceFormat.CompoundClass(compound)">@RaceFormat.CompoundLetter(compound)</span>
+                                        <span>BOX V@(outcome.BoxLap)</span>
+                                        <span class="offset">@Offset(outcome, snapshot.Lap)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="stay-out">STAY OUT</span>
+                                    }
+                                </div>
+                            </td>
+                            <td class="num expected">P@(RaceFormat.Number(outcome.ExpectedPosition))</td>
+                            <td>
+                                <svg class="histogram" viewBox="0 0 @F(HistogramWidth) @F(HistogramHeight)" role="img" aria-label="Distribución de posición final">
+                                    @foreach (var bar in Bars(outcome, cars))
+                                    {
+                                        <rect x="@F(bar.X)" y="@F(bar.Y)" width="@F(bar.Width)" height="@F(bar.Height)"><title>@bar.Title</title></rect>
+                                    }
+                                    @if (position is { } current)
+                                    {
+                                        <line class="now" x1="@F((current - 0.5) * HistogramWidth / cars)" x2="@F((current - 0.5) * HistogramWidth / cars)" y1="0" y2="@F(HistogramHeight)" />
+                                    }
+                                </svg>
+                            </td>
+                            <td class="num gain">@Percent(outcome.PGainPositions)</td>
+                            <td class="num lose">@Percent(outcome.PLosePositions)</td>
+                            <td class="num">@(outcome.ExpectedRaceTimeDelta < 0.05 ? RaceFormat.Missing : $"+{RaceFormat.Number(outcome.ExpectedRaceTimeDelta)} s")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (snapshot.Constraints.Count > 0)
+        {
+            <p class="constraints">Restricciones: @string.Join(" · ", snapshot.Constraints.Select(constraint => constraint.Rule))</p>
+        }
+    }
+</section>
+
+@code {
+    private const double HistogramWidth = 120;
+    private const double HistogramHeight = 22;
+
+    private static readonly CultureInfo Spanish = CultureInfo.GetCultureInfo("es-AR");
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnChanged;
+        Strategies.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Strategies.Changed -= OnChanged;
+    }
+
+    // Los resultados llegan desde el worker aunque el replay esté en pausa.
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static string Percent(double probability) => $"{RaceFormat.Number(probability * 100, "0")}%";
+
+    private static string Offset(StrategyOutcome outcome, int lap) =>
+        outcome.BoxLap is { } boxLap && boxLap > lap ? $"L+{boxLap - lap}" : "L";
+
+    private static string F(double value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    // Barras de P(posición final = k) escaladas a la más probable.
+    private static IEnumerable<Bar> Bars(StrategyOutcome outcome, int cars)
+    {
+        var max = outcome.PositionDistribution.Count == 0 ? 1 : outcome.PositionDistribution.Values.Max();
+        var slot = HistogramWidth / cars;
+        return outcome.PositionDistribution
+            .OrderBy(pair => pair.Key)
+            .Select(pair =>
+            {
+                var height = Math.Max(1, pair.Value / max * HistogramHeight);
+                return new Bar((pair.Key - 1) * slot, HistogramHeight - height, Math.Max(1, slot - 1), height, $"P{pair.Key}: {Percent(pair.Value)}");
+            });
+    }
+
+    private sealed record Bar(double X, double Y, double Width, double Height, string Title);
+}

@@ -1,0 +1,95 @@
+.outcomes {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: 0.25rem 0.4rem;
+    border-bottom: 1px solid var(--pw-border);
+    color: var(--pw-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: left;
+}
+
+td {
+    padding: 0.2rem 0.4rem;
+    border-bottom: 1px solid var(--pw-border-soft);
+    white-space: nowrap;
+}
+
+th.num,
+td.num {
+    text-align: right;
+}
+
+tr.best td {
+    background: var(--pw-surface);
+}
+
+tr.best td:first-child {
+    box-shadow: inset 3px 0 0 var(--pw-accent);
+}
+
+.strategy {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 700;
+}
+
+.strategy .tyre {
+    width: 1.3rem;
+    height: 1.3rem;
+    border-width: 2px;
+    font-size: 0.7rem;
+}
+
+.offset {
+    color: var(--pw-muted);
+    font-family: var(--pw-mono);
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
+.stay-out {
+    letter-spacing: 0.03em;
+}
+
+.expected {
+    font-weight: 700;
+}
+
+.gain {
+    color: var(--pw-flag-green);
+}
+
+.lose {
+    color: var(--pw-flag-red);
+}
+
+.histogram {
+    display: block;
+    width: 7.5rem;
+    height: 1.4rem;
+}
+
+.histogram rect {
+    fill: var(--pw-accent);
+}
+
+tr.best .histogram rect {
+    fill: var(--pw-flag-green);
+}
+
+.histogram .now {
+    stroke: var(--pw-text);
+    stroke-dasharray: 2 2;
+    stroke-width: 1;
+}
+
+.constraints {
+    margin: 0.4rem 0 0;
+    color: var(--pw-muted);
+    font-size: 0.85rem;
+}

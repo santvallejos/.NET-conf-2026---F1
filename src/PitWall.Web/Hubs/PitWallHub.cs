@@ -9,7 +9,7 @@ namespace PitWall.Web.Hubs;
 /// Hub del pit wall: empuja los deltas de <see cref="RaceState"/> y el estado del reproductor a todos los clientes
 /// y expone los mismos controles que el panel Controles. Todos los clientes comparten la sesión activa.
 /// </summary>
-public sealed class PitWallHub(PitWallSession session) : Hub<IPitWallClient>
+public sealed class PitWallHub(PitWallSession session, StrategyStore strategies) : Hub<IPitWallClient>
 {
     public const string Route = "/hubs/pitwall";
 
@@ -27,6 +27,10 @@ public sealed class PitWallHub(PitWallSession session) : Hub<IPitWallClient>
     public IReadOnlyList<SessionInfo> GetSessions() => session.View.Sessions;
 
     public RaceStateDelta? GetSnapshot() => session.GetSnapshot();
+
+    /// <summary>Última estrategia calculada del piloto en la sesión activa, o null.</summary>
+    public StrategySnapshot? GetStrategy(int driverNumber) =>
+        session.View.State is { } state ? strategies.Get(state.SessionKey, driverNumber)?.Snapshot : null;
 
     /// <summary>Mensajes de Race Control hasta el instante actual, del más nuevo al más viejo.</summary>
     public IReadOnlyList<RaceControlMessage> GetRaceControl() => session.View.RaceControl;

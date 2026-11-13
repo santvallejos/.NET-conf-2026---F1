@@ -1,3 +1,4 @@
+using PitWall.Domain;
 using PitWall.Web.Services;
 
 namespace PitWall.Web.Hubs;
@@ -9,4 +10,7 @@ public interface IPitWallClient
     Task OnRaceStateDelta(RaceStateDelta delta);
 
     Task OnPlaybackChanged(PlaybackState playback);
+
+    /// <summary>Estrategia recién calculada de un piloto al cerrar una vuelta.</summary>
+    Task OnStrategySnapshot(StrategySnapshot snapshot);
 }

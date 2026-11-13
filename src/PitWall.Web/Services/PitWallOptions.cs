@@ -14,4 +14,11 @@ public sealed class PitWallOptions
     /// <summary>Piloto foco: su fila se resalta con el color de equipo.</summary>
     [Range(1, 99)]
     public int FocusDriver { get; set; } = 43;
+
+    /// <summary>
+    /// Pilotos cuya estrategia se calcula en segundo plano además del foco. Sin default en código: el binder agrega
+    /// los valores de configuración a los de un array ya inicializado.
+    /// </summary>
+    [MaxLength(3)]
+    public int[] BackgroundDrivers { get; set; } = [];
 }

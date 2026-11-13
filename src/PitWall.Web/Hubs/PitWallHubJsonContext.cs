@@ -12,6 +12,7 @@ namespace PitWall.Web.Hubs;
 [JsonSerializable(typeof(PlaybackState))]
 [JsonSerializable(typeof(IReadOnlyList<SessionInfo>))]
 [JsonSerializable(typeof(IReadOnlyList<RaceControlMessage>))]
+[JsonSerializable(typeof(StrategySnapshot))]
 public sealed partial class PitWallHubJsonContext : JsonSerializerContext
 {
 }
