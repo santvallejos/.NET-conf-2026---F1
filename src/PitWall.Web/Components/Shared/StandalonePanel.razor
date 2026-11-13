@@ -1,0 +1,18 @@
+@* Raíz interactiva de /panel/{slug}: un panel solo en su ventana (ensayo multi-monitor, docs/ui.md §3). Recibe el
+   slug y no el tipo porque los parámetros que cruzan el límite de render mode tienen que ser serializables. *@
+
+<div class="standalone">
+    @foreach (var component in _entry?.Components ?? [])
+    {
+        <DynamicComponent @key="component" Type="component" />
+    }
+</div>
+
+@code {
+    private PanelEntry? _entry;
+
+    [Parameter, EditorRequired]
+    public string Slug { get; set; } = "";
+
+    protected override void OnParametersSet() => _entry = PanelCatalog.Find(Slug);
+}

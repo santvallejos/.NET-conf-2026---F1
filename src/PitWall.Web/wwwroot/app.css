@@ -127,12 +127,12 @@ input:disabled {
 .tyre {
     display: inline-grid;
     place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.6rem;
+    height: 1.6rem;
     border: 3px solid currentColor;
     border-radius: 50%;
     background: #0b0d10;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 800;
 }
 

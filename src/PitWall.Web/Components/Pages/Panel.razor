@@ -1,0 +1,45 @@
+@page "/panel"
+@page "/panel/{Slug}"
+@using PitWall.Web.Components.Shared
+@inject NavigationManager Navigation
+
+@* Ensayo multi-monitor (docs/ui.md §3): cada panel en su ventana; /panel lista las rutas. Todas las ventanas
+   comparten la sesión del servidor, así que controlar el replay en una mueve todas. *@
+@if (_entry is not null)
+{
+    <PageTitle>PitWall · @_entry.Title</PageTitle>
+
+    <StandalonePanel Slug="@_entry.Slug" @rendermode="InteractiveServer" />
+}
+else if (Slug is null)
+{
+    <PageTitle>PitWall · Paneles</PageTitle>
+
+    <nav class="panel-index" aria-label="Paneles">
+        <h1>Paneles</h1>
+        <p class="hint">Cada panel abre en una ventana propia; todas siguen el mismo replay.</p>
+        <ul>
+            <li><a href="" target="_blank">Pit wall completo</a><span class="route num">/</span></li>
+            @foreach (var entry in PanelCatalog.All)
+            {
+                <li><a href="panel/@entry.Slug" target="_blank">@entry.Title</a><span class="route num">/panel/@entry.Slug</span></li>
+            }
+        </ul>
+    </nav>
+}
+
+@code {
+    private PanelEntry? _entry;
+
+    [Parameter]
+    public string? Slug { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        _entry = PanelCatalog.Find(Slug);
+        if (Slug is not null && _entry is null)
+        {
+            Navigation.NotFound();
+        }
+    }
+}

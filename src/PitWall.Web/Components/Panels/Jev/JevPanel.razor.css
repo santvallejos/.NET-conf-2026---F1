@@ -7,7 +7,7 @@
     padding: 0 0.35rem;
     border: 1px solid currentColor;
     border-radius: 3px;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: normal;
     vertical-align: middle;
@@ -20,7 +20,7 @@
 
 td .tag {
     margin-left: 0.25rem;
-    font-size: 0.7rem;
+    font-size: 0.875rem;
 }
 
 .alert {
@@ -62,7 +62,7 @@ td .tag {
 
 .reasons {
     margin-top: 0.2rem;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }
 
 .actions {
@@ -80,7 +80,7 @@ td .tag {
 .hint,
 .muted {
     color: var(--pw-muted);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }
 
 .history {
@@ -91,7 +91,7 @@ td .tag {
 table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 th {
@@ -99,7 +99,7 @@ th {
     top: 0;
     background: var(--pw-panel);
     color: var(--pw-muted);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 600;
     text-align: left;
 }
@@ -125,12 +125,12 @@ td {
 }
 
 .reasons-cell {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
 }
 
 .tyre.small {
-    width: 1.2rem;
-    height: 1.2rem;
+    width: 1.4rem;
+    height: 1.4rem;
     border-width: 2px;
-    font-size: 0.65rem;
+    font-size: 0.875rem;
 }

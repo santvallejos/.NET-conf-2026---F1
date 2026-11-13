@@ -1,0 +1,43 @@
+@* Zona de la grilla de la charla: muestra un panel a la vez y pestañas si tiene más de uno. Solo el panel
+   activo queda montado, así los ocultos no se re-renderizan con cada estado del replay. *@
+
+<div class="zone" style="grid-area: @Area">
+    @if (Panels.Count > 1)
+    {
+        <div class="tabs" role="tablist">
+            @for (var i = 0; i < Panels.Count; i++)
+            {
+                var index = i;
+                var selected = index == _active;
+                <button type="button" role="tab" class="tab @(selected ? "active" : null)"
+                        aria-selected="@(selected ? "true" : "false")" @onclick="() => _active = index">
+                    @Panels[index].Title
+                </button>
+            }
+        </div>
+    }
+    <div class="zone-body">
+        @foreach (var component in Panels[_active].Components)
+        {
+            <DynamicComponent @key="component" Type="component" />
+        }
+    </div>
+</div>
+
+@code {
+    private int _active;
+
+    /// <summary>Nombre de la <c>grid-area</c> que ocupa la zona en <see cref="Layout.PitWallLayout"/>.</summary>
+    [Parameter, EditorRequired]
+    public string Area { get; set; } = "";
+
+    /// <summary>Paneles de la zona; el primero es el visible al arrancar.</summary>
+    [Parameter, EditorRequired]
+    public IReadOnlyList<PanelEntry> Panels { get; set; } = [];
+
+    protected override void OnParametersSet()
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(Panels.Count, nameof(Panels));
+        _active = Math.Min(_active, Panels.Count - 1);
+    }
+}

@@ -4,7 +4,7 @@
     border: 1px solid var(--pw-flag-sc);
     border-radius: 3px;
     color: var(--pw-flag-sc);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 700;
 }
 
@@ -17,7 +17,7 @@
 
 .readings dt {
     color: var(--pw-muted);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }
 
 .readings dd {
@@ -48,7 +48,7 @@
     overflow: hidden;
     border-bottom: 3px solid currentColor;
     background: var(--pw-surface);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     font-weight: 700;
 }
 
@@ -92,7 +92,7 @@
 
 .curve .label {
     fill: var(--pw-muted);
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .curve .label.end {

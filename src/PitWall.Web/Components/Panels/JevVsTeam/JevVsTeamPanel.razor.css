@@ -43,7 +43,7 @@ th {
     top: 0;
     background: var(--pw-panel);
     color: var(--pw-muted);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 600;
     text-align: left;
 }
@@ -67,14 +67,14 @@ td {
     gap: 0.25rem;
     margin-left: 0.4rem;
     color: var(--pw-muted);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }
 
 .outcome {
     padding: 0 0.4rem;
     border: 1px solid currentColor;
     border-radius: 3px;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 700;
 }
 
@@ -87,7 +87,7 @@ td {
 .compound-differs {
     margin-left: 0.35rem;
     color: var(--pw-flag-red);
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }
 
 .tyre.unknown {

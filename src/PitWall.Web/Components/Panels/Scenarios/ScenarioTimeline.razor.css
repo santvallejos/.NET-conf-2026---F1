@@ -7,7 +7,7 @@
     padding: 0 0.35rem;
     border: 1px solid currentColor;
     border-radius: 3px;
-    font-size: 0.7rem;
+    font-size: 0.875rem;
     font-weight: 700;
     letter-spacing: normal;
     vertical-align: middle;
@@ -59,11 +59,11 @@
 
 .event .params {
     color: var(--pw-muted);
-    font-size: 0.85rem;
+    font-size: 0.875rem;
 }
 
 .status {
-    font-size: 0.7rem;
+    font-size: 0.875rem;
     font-weight: 700;
 }
 
@@ -74,7 +74,7 @@
 .decisions {
     margin: 0.2rem 0 0;
     padding-left: 0.8rem;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     list-style: none;
 }
 
@@ -95,10 +95,10 @@
 }
 
 .reasons {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
 }
 
 .waiting {
     margin: 0.2rem 0 0 0.8rem;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
 }

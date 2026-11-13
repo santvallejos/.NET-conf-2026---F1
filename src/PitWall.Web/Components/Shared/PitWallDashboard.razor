@@ -1,16 +1,5 @@
 @using PitWall.Web.Components.Panels.Controls
-@using PitWall.Web.Components.Panels.Energy
-@using PitWall.Web.Components.Panels.Jev
-@using PitWall.Web.Components.Panels.JevVsTeam
-@using PitWall.Web.Components.Panels.Map
-@using PitWall.Web.Components.Panels.MonteCarlo
 @using PitWall.Web.Components.Panels.Radio
-@using PitWall.Web.Components.Panels.RaceControl
-@using PitWall.Web.Components.Panels.Scenarios
-@using PitWall.Web.Components.Panels.Telemetry
-@using PitWall.Web.Components.Panels.Tower
-@using PitWall.Web.Components.Panels.Tyres
-@using PitWall.Web.Components.Panels.Weather
 
 @* Pantalla única de la charla; es la raíz interactiva (los RenderFragment no cruzan el límite de render mode). *@
 <PitWallLayout>
@@ -19,22 +8,27 @@
         <ReplayControls />
         <RadioPlayer />
     </TopBar>
-    <Left>
-        <TimingTower />
-        <TrackMap />
-    </Left>
-    <Center>
-        <MonteCarloPanel />
-        <TyrePanel />
-        <TelemetryChart />
-        <ScenarioInjector />
-        <ScenarioTimeline />
-    </Center>
-    <Right>
-        <JevPanel />
-        <JevVsTeamPanel />
-        <WeatherWidget />
-        <EnergyWidget />
-        <RaceControlFeed />
-    </Right>
+    <ChildContent>
+        <PanelZone Area="left-top" Panels="LeftTop" />
+        <PanelZone Area="left-bottom" Panels="LeftBottom" />
+        <PanelZone Area="center-top" Panels="CenterTop" />
+        <PanelZone Area="center-bottom" Panels="CenterBottom" />
+        <PanelZone Area="right-top" Panels="RightTop" />
+        <PanelZone Area="right-bottom" Panels="RightBottom" />
+        <PanelZone Area="widget-center" Panels="WidgetCenter" />
+        <PanelZone Area="widget-right" Panels="WidgetRight" />
+    </ChildContent>
 </PitWallLayout>
+
+@code {
+    // Distribución de docs/ui.md §3; la inyección de eventos va como pestaña junto al mapa para que Monte Carlo y Jev
+    // queden a la vista al inyectar.
+    private static readonly PanelEntry[] LeftTop = [PanelCatalog.Tower];
+    private static readonly PanelEntry[] LeftBottom = [PanelCatalog.Map, PanelCatalog.Scenarios];
+    private static readonly PanelEntry[] CenterTop = [PanelCatalog.MonteCarlo];
+    private static readonly PanelEntry[] CenterBottom = [PanelCatalog.Tyres, PanelCatalog.Telemetry];
+    private static readonly PanelEntry[] RightTop = [PanelCatalog.Jev];
+    private static readonly PanelEntry[] RightBottom = [PanelCatalog.JevVsTeam, PanelCatalog.RaceControl];
+    private static readonly PanelEntry[] WidgetCenter = [PanelCatalog.Weather];
+    private static readonly PanelEntry[] WidgetRight = [PanelCatalog.Energy];
+}

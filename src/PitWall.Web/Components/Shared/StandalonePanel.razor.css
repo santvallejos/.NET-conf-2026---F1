@@ -1,0 +1,11 @@
+.standalone {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 100vh;
+    padding: 0.6rem;
+}
+
+.standalone ::deep .panel {
+    flex: 1 0 auto;
+}

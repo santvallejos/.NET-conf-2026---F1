@@ -1,16 +1,13 @@
-@* Grilla del pit wall para una pantalla: barra superior y columnas de paneles (docs/ui.md §3). *@
+@* Layout de la charla para una pantalla (docs/ui.md §3): barra superior y grilla 3×2 de zonas con pestañas, más una
+   fila compacta de widgets. Las zonas se ubican por grid-area: left-top, left-bottom, center-top, center-bottom,
+   right-top, right-bottom, widget-center y widget-right. *@
 
 <div class="pitwall">
     <header class="top-bar">
         @TopBar
     </header>
-    <main class="columns">
-        <div class="column left">@Left</div>
-        @if (Center is not null)
-        {
-            <div class="column center">@Center</div>
-        }
-        <div class="column right">@Right</div>
+    <main class="grid">
+        @ChildContent
     </main>
 </div>
 
@@ -19,11 +16,5 @@
     public RenderFragment? TopBar { get; set; }
 
     [Parameter, EditorRequired]
-    public RenderFragment? Left { get; set; }
-
-    [Parameter]
-    public RenderFragment? Center { get; set; }
-
-    [Parameter, EditorRequired]
-    public RenderFragment? Right { get; set; }
+    public RenderFragment? ChildContent { get; set; }
 }
