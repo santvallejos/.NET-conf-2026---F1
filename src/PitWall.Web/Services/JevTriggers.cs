@@ -31,11 +31,19 @@ public sealed class JevTriggers
     /// <summary>Triage ante un evento inyectado; con <paramref name="scenarioId"/> la decisión es hipotética.</summary>
     /// <param name="injectedEvent">Descripción compacta del evento que viaja en <c>injected</c> del state.</param>
     /// <param name="eventId">Id del evento en el escenario; sus decisiones quedan asociadas a él en el timeline.</param>
-    public void RequestTriage(string injectedEvent, Guid? scenarioId = null, int? eventId = null)
+    /// <param name="driverNumber">
+    /// Solo este piloto (si está en <c>Jev:Drivers</c>); null = todos. Permite consultar a cada piloto apenas su
+    /// estrategia hipotética está calculada, sin esperar a los demás.
+    /// </param>
+    public void RequestTriage(string injectedEvent, Guid? scenarioId = null, int? eventId = null, int? driverNumber = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(injectedEvent);
+        if (driverNumber is { } driver)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(driver, 1, nameof(driverNumber));
+        }
 
-        Write(new JevWorkItem.Injected(injectedEvent, scenarioId, eventId));
+        Write(new JevWorkItem.Injected(injectedEvent, scenarioId, eventId, driverNumber));
     }
 
     internal void OnStrategyPublished(StrategyPublication publication) => Write(new JevWorkItem.StrategyCalculated(publication));

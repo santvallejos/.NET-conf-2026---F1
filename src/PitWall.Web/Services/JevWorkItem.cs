@@ -15,7 +15,8 @@ internal abstract record JevWorkItem
     /// <param name="ScenarioId">Escenario hipotético activo al consultar; null = carrera real.</param>
     public sealed record Manual(int DriverNumber, Guid? ScenarioId = null) : JevWorkItem;
 
-    /// <summary>Evento inyectado: triage para cada piloto con Jev activo.</summary>
+    /// <summary>Evento inyectado: triage para cada piloto con Jev activo, o solo para <c>DriverNumber</c>.</summary>
     /// <param name="EventId">Id del evento en el escenario, para ubicar las decisiones en su timeline.</param>
-    public sealed record Injected(string Event, Guid? ScenarioId, int? EventId = null) : JevWorkItem;
+    /// <param name="DriverNumber">Solo este piloto (su estrategia hipotética ya está publicada); null = todos.</param>
+    public sealed record Injected(string Event, Guid? ScenarioId, int? EventId = null, int? DriverNumber = null) : JevWorkItem;
 }

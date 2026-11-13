@@ -169,7 +169,7 @@ public sealed partial class JevWorker(
             return;
         }
 
-        foreach (var driverNumber in options.CurrentValue.Drivers)
+        foreach (var driverNumber in options.CurrentValue.Drivers.Where(driver => injected.DriverNumber is null || driver == injected.DriverNumber))
         {
             if (injected.ScenarioId is not { } scenarioId)
             {

@@ -15,6 +15,8 @@ namespace PitWall.Web.Services;
 /// uno está activo. Inyectar sobre <c>Real</c> crea un escenario nuevo. Cada cambio avisa a
 /// <see cref="StrategyWorker"/>, que recalcula la estrategia hipotética y, si el evento ya ocurrió
 /// (<c>lap</c> ≤ vuelta actual), dispara el triage de Jev; si no, queda programado hasta que el replay llegue.
+/// Un evento inyectado se publica y se calcula con ids ya reservados mientras se escribe en SQLite; si la escritura
+/// falla, se quita de la vista y se recalcula sin él.
 /// </summary>
 public sealed partial class ScenarioService(
     IScenarioStore store,
@@ -82,7 +84,7 @@ public sealed partial class ScenarioService(
             }
 
             var real = scenarios.First(scenario => scenario.IsReal);
-            await SetViewAsync(new ScenarioView(sessionKey, scenarios, real.Id, error), null);
+            await SetViewAsync(new ScenarioView(sessionKey, scenarios, real.Id, error));
         }
         finally
         {
@@ -109,8 +111,9 @@ public sealed partial class ScenarioService(
 
         try
         {
-            var scenario = await store.CreateAsync(sessionKey, trimmed, cancellationToken);
-            await UpdateAsync(current => current with { Scenarios = [.. current.Scenarios, scenario], ActiveScenarioId = scenario.Id, Error = null }, null);
+            var scenario = await store.NewScenarioAsync(sessionKey, trimmed, cancellationToken);
+            await store.SaveAsync(scenario, null, cancellationToken);
+            await UpdateAsync(current => current with { Scenarios = [.. current.Scenarios, scenario], ActiveScenarioId = scenario.Id, Error = null }, ScenarioSignal.Recalculate);
             return scenario;
         }
         catch (Exception exception) when (exception is DbException or DbUpdateException)
@@ -128,12 +131,13 @@ public sealed partial class ScenarioService(
             return;
         }
 
-        await UpdateAsync(current => current with { ActiveScenarioId = scenarioId, Error = null }, null);
+        await UpdateAsync(current => current with { ActiveScenarioId = scenarioId, Error = null }, ScenarioSignal.Recalculate);
     }
 
     /// <summary>
-    /// Persiste el evento en el escenario activo (o en uno nuevo si el activo es <c>Real</c>) con los defaults de
-    /// <c>Scenarios:*</c>. Devuelve null y deja el motivo en <see cref="ScenarioView.Error"/> si no se pudo.
+    /// Agrega el evento al escenario activo (o a uno nuevo si el activo es <c>Real</c>) con los defaults de
+    /// <c>Scenarios:*</c>, lo publica para el cálculo y espera a que quede guardado. Devuelve null y deja el motivo
+    /// en <see cref="ScenarioView.Error"/> si no se pudo.
     /// </summary>
     public async Task<InjectedEvent?> InjectAsync(InjectEventRequest request, CancellationToken cancellationToken = default)
     {
@@ -176,27 +180,18 @@ public sealed partial class ScenarioService(
         }
 
         parameters = InjectedEventDefaults.Apply(request.Type, parameters, options.Value, focusDriver);
+        var scenario = view.Active;
+        Scenario? created = null;
+        InjectedEvent injected;
         try
         {
-            var scenario = view.Active;
             if (scenario is null || scenario.IsReal)
             {
-                scenario = await store.CreateAsync(sessionKey, ScenarioLabels.DefaultScenarioName(request.Type, request.Lap), cancellationToken);
+                created = await store.NewScenarioAsync(sessionKey, ScenarioLabels.DefaultScenarioName(request.Type, request.Lap), cancellationToken);
+                scenario = created;
             }
 
-            var injected = await store.AddEventAsync(scenario.Id, request.Type, request.Lap, parameters, cancellationToken);
-            var updated = scenario with { Events = [.. scenario.Events, injected] };
-            var immediate = request.Lap <= state.LeaderLap;
-            await UpdateAsync(
-                current => current with
-                {
-                    Scenarios = [.. current.Scenarios.Where(other => other.Id != updated.Id), updated],
-                    ActiveScenarioId = updated.Id,
-                    Error = null,
-                },
-                immediate ? injected : null);
-            LogInjected(injected.Describe(), updated.Name, immediate);
-            return injected;
+            injected = await store.NewEventAsync(scenario.Id, request.Type, request.Lap, parameters, cancellationToken);
         }
         catch (Exception exception) when (exception is DbException or DbUpdateException)
         {
@@ -204,11 +199,64 @@ public sealed partial class ScenarioService(
             await SetErrorAsync(StoreError);
             return null;
         }
+
+        // Task.Run: Microsoft.Data.Sqlite escribe de forma sincrónica aunque la API sea async.
+        var saved = Task.Run(() => SaveAsync(created, injected, sessionKey), CancellationToken.None);
+        var immediate = request.Lap <= state.LeaderLap;
+        await UpdateAsync(
+            current =>
+            {
+                var target = current.Scenarios.FirstOrDefault(other => other.Id == injected.ScenarioId) ?? scenario;
+                return current with
+                {
+                    Scenarios = [.. current.Scenarios.Where(other => other.Id != target.Id), target with { Events = [.. target.Events, injected] }],
+                    ActiveScenarioId = target.Id,
+                    Error = null,
+                };
+            },
+            new ScenarioSignal(immediate ? injected : null, saved));
+        LogInjected(injected.Describe(), scenario.Name, immediate);
+
+        if (await saved)
+        {
+            return injected;
+        }
+
+        // Sin fila en la base el evento (y el escenario creado para él) no existe: se quita y se vuelve al activo anterior.
+        await UpdateAsync(
+            current => current with
+            {
+                Scenarios = created is not null
+                    ? [.. current.Scenarios.Where(other => other.Id != created.Id)]
+                    : [.. current.Scenarios.Select(other => other.Id == injected.ScenarioId
+                        ? other with { Events = [.. other.Events.Where(e => e.Id != injected.Id)] }
+                        : other)],
+                ActiveScenarioId = created is not null && current.ActiveScenarioId == created.Id ? view.ActiveScenarioId : current.ActiveScenarioId,
+                Error = StoreError,
+            },
+            ScenarioSignal.Recalculate);
+        return null;
     }
 
-    private Task SetErrorAsync(string error) => UpdateAsync(current => current with { Error = error }, null, signal: false);
+    // Corre sin el token del pedido: una vez publicado, el evento tiene que quedar guardado aunque el cliente se vaya.
+    private async Task<bool> SaveAsync(Scenario? created, InjectedEvent injected, int sessionKey)
+    {
+        try
+        {
+            await store.SaveAsync(created, injected, CancellationToken.None);
+            return true;
+        }
+        catch (Exception exception) when (exception is DbException or DbUpdateException)
+        {
+            LogStoreFailed(exception, sessionKey);
+            return false;
+        }
+    }
 
-    private async Task UpdateAsync(Func<ScenarioView, ScenarioView> change, InjectedEvent? injected, bool signal = true)
+    private Task SetErrorAsync(string error) => UpdateAsync(current => current with { Error = error }, null);
+
+    /// <param name="signal">Pedido de recálculo para <see cref="StrategyWorker"/>; null si solo cambia el error.</param>
+    private async Task UpdateAsync(Func<ScenarioView, ScenarioView> change, ScenarioSignal? signal)
     {
         ScenarioView view;
         lock (_gate)
@@ -216,24 +264,24 @@ public sealed partial class ScenarioService(
             view = _view = change(_view);
         }
 
-        await PublishAsync(view, injected, signal);
+        await PublishAsync(view, signal);
     }
 
-    private async Task SetViewAsync(ScenarioView view, InjectedEvent? injected)
+    private async Task SetViewAsync(ScenarioView view)
     {
         lock (_gate)
         {
             _view = view;
         }
 
-        await PublishAsync(view, injected, signal: true);
+        await PublishAsync(view, ScenarioSignal.Recalculate);
     }
 
-    private async Task PublishAsync(ScenarioView view, InjectedEvent? injected, bool signal)
+    private async Task PublishAsync(ScenarioView view, ScenarioSignal? signal)
     {
-        if (signal)
+        if (signal is not null)
         {
-            _signals.Writer.TryWrite(new ScenarioSignal(injected));
+            _signals.Writer.TryWrite(signal);
         }
 
         Changed?.Invoke();

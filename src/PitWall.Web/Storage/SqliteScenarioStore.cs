@@ -10,16 +10,27 @@ using ScenarioEntity = PitWall.Data.Entities.Scenario;
 
 namespace PitWall.Web.Storage;
 
-/// <summary>Escenarios en las tablas <c>Scenario</c> e <c>InjectedEvent</c>; los parámetros viajan como JSON en <c>Params</c>.</summary>
+/// <summary>
+/// Escenarios en las tablas <c>Scenario</c> e <c>InjectedEvent</c>; los parámetros viajan como JSON en <c>Params</c>.
+/// Los ids los asigna este store (último id de cada tabla + 1, leído una vez) en lugar de SQLite, para poder
+/// reservarlos sin esperar a la escritura. Supone que esta app es la única que escribe esas tablas.
+/// </summary>
 public sealed class SqliteScenarioStore(IDbContextFactory<PitWallDbContext> dbContextFactory, TimeProvider timeProvider) : IScenarioStore
 {
+    private readonly SemaphoreSlim _idsLoading = new(1, 1);
+    private bool _idsLoaded;
+    private int _lastScenarioId;
+    private int _lastEventId;
+
     public async Task<IReadOnlyList<Scenario>> LoadAsync(int sessionKey, CancellationToken ct)
     {
+        await EnsureIdsAsync(ct);
+
         await using var db = await dbContextFactory.CreateDbContextAsync(ct);
         var scenarios = await db.Scenarios.Where(e => e.SessionKey == sessionKey).OrderBy(e => e.Id).ToListAsync(ct);
         if (!scenarios.Any(e => e.Name == Scenario.RealName))
         {
-            var real = new ScenarioEntity { SessionKey = sessionKey, Name = Scenario.RealName, CreatedAt = timeProvider.GetUtcNow() };
+            var real = ToEntity(await NewScenarioAsync(sessionKey, Scenario.RealName, ct));
             db.Scenarios.Add(real);
             await db.SaveChangesAsync(ct);
             scenarios.Insert(0, real);
@@ -35,18 +46,15 @@ public sealed class SqliteScenarioStore(IDbContextFactory<PitWallDbContext> dbCo
         return [.. scenarios.Select(e => Map(e, [.. byScenario[e.Id].Select(Map).OfType<InjectedEvent>()]))];
     }
 
-    public async Task<Scenario> CreateAsync(int sessionKey, string name, CancellationToken ct)
+    public async Task<Scenario> NewScenarioAsync(int sessionKey, string name, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
-        await using var db = await dbContextFactory.CreateDbContextAsync(ct);
-        var entity = new ScenarioEntity { SessionKey = sessionKey, Name = name, CreatedAt = timeProvider.GetUtcNow() };
-        db.Scenarios.Add(entity);
-        await db.SaveChangesAsync(ct);
-        return Map(entity, []);
+        await EnsureIdsAsync(ct);
+        return new Scenario(ScenarioKeys.ToGuid(Interlocked.Increment(ref _lastScenarioId)), sessionKey, name, timeProvider.GetUtcNow(), []);
     }
 
-    public async Task<InjectedEvent> AddEventAsync(
+    public async Task<InjectedEvent> NewEventAsync(
         Guid scenarioId,
         InjectedEventType type,
         int lap,
@@ -54,22 +62,77 @@ public sealed class SqliteScenarioStore(IDbContextFactory<PitWallDbContext> dbCo
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(parameters);
-        var id = ScenarioKeys.ToDatabaseId(scenarioId)
-            ?? throw new ArgumentException($"Scenario {scenarioId} is not persisted.", nameof(scenarioId));
+        _ = DatabaseId(scenarioId);
+
+        await EnsureIdsAsync(ct);
+        return new InjectedEvent(Interlocked.Increment(ref _lastEventId), scenarioId, type, lap, parameters, timeProvider.GetUtcNow());
+    }
+
+    public async Task SaveAsync(Scenario? scenario, InjectedEvent? injected, CancellationToken ct)
+    {
+        if (scenario is null && injected is null)
+        {
+            return;
+        }
 
         await using var db = await dbContextFactory.CreateDbContextAsync(ct);
-        var entity = new InjectedEventEntity
+        if (scenario is not null)
         {
-            ScenarioId = id,
-            Lap = lap,
-            Type = type.ToString(),
-            Params = JsonSerializer.Serialize(parameters, ScenarioJsonContext.Default.InjectedEventParameters),
-            CreatedAt = timeProvider.GetUtcNow(),
-        };
-        db.InjectedEvents.Add(entity);
+            db.Scenarios.Add(ToEntity(scenario));
+        }
+
+        if (injected is not null)
+        {
+            db.InjectedEvents.Add(new InjectedEventEntity
+            {
+                Id = injected.Id,
+                ScenarioId = DatabaseId(injected.ScenarioId),
+                Lap = injected.Lap,
+                Type = injected.Type.ToString(),
+                Params = JsonSerializer.Serialize(injected.Parameters, ScenarioJsonContext.Default.InjectedEventParameters),
+                CreatedAt = injected.CreatedAt,
+            });
+        }
+
         await db.SaveChangesAsync(ct);
-        return new InjectedEvent(entity.Id, scenarioId, type, lap, parameters, entity.CreatedAt);
     }
+
+    private async Task EnsureIdsAsync(CancellationToken ct)
+    {
+        if (Volatile.Read(ref _idsLoaded))
+        {
+            return;
+        }
+
+        await _idsLoading.WaitAsync(ct);
+        try
+        {
+            if (_idsLoaded)
+            {
+                return;
+            }
+
+            await using var db = await dbContextFactory.CreateDbContextAsync(ct);
+            _lastScenarioId = await db.Scenarios.MaxAsync(e => (int?)e.Id, ct) ?? 0;
+            _lastEventId = await db.InjectedEvents.MaxAsync(e => (int?)e.Id, ct) ?? 0;
+            Volatile.Write(ref _idsLoaded, true);
+        }
+        finally
+        {
+            _idsLoading.Release();
+        }
+    }
+
+    private static int DatabaseId(Guid scenarioId) =>
+        ScenarioKeys.ToDatabaseId(scenarioId) ?? throw new ArgumentException($"Scenario {scenarioId} does not come from this store.", nameof(scenarioId));
+
+    private static ScenarioEntity ToEntity(Scenario scenario) => new()
+    {
+        Id = DatabaseId(scenario.Id),
+        SessionKey = scenario.SessionKey,
+        Name = scenario.Name,
+        CreatedAt = scenario.CreatedAt,
+    };
 
     private static Scenario Map(ScenarioEntity entity, IReadOnlyList<InjectedEvent> events) =>
         new(ScenarioKeys.ToGuid(entity.Id), entity.SessionKey, entity.Name, entity.CreatedAt, events);
