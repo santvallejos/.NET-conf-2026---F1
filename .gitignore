@@ -2,7 +2,7 @@
 features/
 
 # Datos locales (docs/configuration.md §5)
-data/
+/data/
 *.db
 *.db-shm
 *.db-wal
