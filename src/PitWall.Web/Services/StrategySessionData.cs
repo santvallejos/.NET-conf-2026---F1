@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using PitWall.Data;
 using PitWall.Domain;
 using PitWall.Strategy.Degradation;
+using PitWall.Strategy.Scenarios;
 using PitWall.Strategy.Workers;
 using PitWall.Web.Components.Panels.Tyres;
 
@@ -80,7 +81,8 @@ internal sealed class StrategySessionData
     }
 
     /// <summary>Contexto de estrategia en el instante de <paramref name="state"/>; null si la sesión no tiene vueltas.</summary>
-    public StrategyContext? Context(RaceState state, IReadOnlyDictionary<int, EnergyEstimate> energy)
+    /// <param name="scenario">Efectos de los eventos inyectados del escenario activo; null en la carrera real.</param>
+    public StrategyContext? Context(RaceState state, IReadOnlyDictionary<int, EnergyEstimate> energy, ScenarioEffects? scenario = null)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(energy);
@@ -107,7 +109,27 @@ internal sealed class StrategySessionData
             [.. _pitStops.TakeWhile(stop => stop.Date <= clock).Select(stop => stop.LaneDuration)],
             _overtakes.TakeWhile(date => date <= clock).Count(),
             energy,
-            new HashSet<int>());
+            scenario?.PuncturedDrivers ?? new HashSet<int>())
+        {
+            Scenario = scenario ?? ScenarioEffects.None,
+        };
+    }
+
+    /// <summary>Vuelta en la que empezó el stint actual de cada auto (un pinchazo o un alerón se reparan al parar).</summary>
+    public IReadOnlyDictionary<int, int> StintStartLaps(RaceState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        var starts = new Dictionary<int, int>();
+        foreach (var car in state.Cars)
+        {
+            if (_laps.StintsUpTo(car.DriverNumber, car.Lap) is { Count: > 0 } stints)
+            {
+                starts[car.DriverNumber] = stints.Max(stint => stint.LapStart);
+            }
+        }
+
+        return starts;
     }
 
     private bool RainfallAt(DateTimeOffset date)

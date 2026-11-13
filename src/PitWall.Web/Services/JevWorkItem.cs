@@ -15,5 +15,6 @@ internal abstract record JevWorkItem
     public sealed record Manual(int DriverNumber) : JevWorkItem;
 
     /// <summary>Evento inyectado: triage para cada piloto con Jev activo.</summary>
-    public sealed record Injected(string Event, Guid? ScenarioId) : JevWorkItem;
+    /// <param name="EventId">Id del evento en el escenario, para ubicar las decisiones en su timeline.</param>
+    public sealed record Injected(string Event, Guid? ScenarioId, int? EventId = null) : JevWorkItem;
 }

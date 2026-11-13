@@ -10,4 +10,5 @@ public static class ConstraintRules
     public const string DryTrack = "DRY_TRACK";
     public const string Puncture = "PUNCTURE";
     public const string WingDamage = "WING_DAMAGE";
+    public const string ErsFailure = "ERS_FAILURE";
 }

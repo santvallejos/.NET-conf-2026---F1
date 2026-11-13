@@ -16,4 +16,10 @@ public interface IPitWallClient
 
     /// <summary>Decisión nueva de Jev (triage o estrategia).</summary>
     Task OnJevDecision(JevDecision decision);
+
+    /// <summary>Escenarios de la sesión: creado, elegido o con un evento inyectado.</summary>
+    Task OnScenarioChanged(ScenarioView scenarios);
+
+    /// <summary>Estrategia HIPOTÉTICA de un piloto con los eventos inyectados del escenario.</summary>
+    Task OnHypotheticalStrategySnapshot(Guid scenarioId, StrategySnapshot snapshot);
 }

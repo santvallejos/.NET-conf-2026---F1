@@ -1,0 +1,209 @@
+@using Microsoft.Extensions.Options
+@using PitWall.Strategy.Rules
+@using PitWall.Strategy.Scenarios
+@using PitWall.Web.Services
+@implements IDisposable
+@inject PitWallSession Session
+@inject ScenarioService Scenarios
+@inject IOptions<ScenarioOptions> ScenarioOptionsAccessor
+@inject IOptions<PitWallOptions> PitWallOptionsAccessor
+
+@{
+    var view = Session.View;
+    var state = view.State;
+    var scenarios = Scenarios.View;
+    var loaded = state is not null && scenarios.SessionKey == state.SessionKey;
+    var currentLap = state?.LeaderLap ?? 0;
+    var lap = _lap ?? Math.Max(1, currentLap);
+    var drivers = view.Drivers.Values.OrderBy(driver => driver.DriverNumber).ToList();
+}
+
+<section class="panel scenarios">
+    <header class="panel-header">
+        <h2>
+            Escenarios
+            @if (scenarios.Hypothetical)
+            {
+                <span class="tag hypothetical" title="Lo que se calcule en este escenario es hipotético: el replay sigue siendo la carrera real">HIPOTÉTICO</span>
+            }
+        </h2>
+        <span class="panel-meta num">V@(currentLap)</span>
+    </header>
+
+    <div class="row">
+        <label for="pw-scenario">Escenario</label>
+        <select id="pw-scenario" value="@scenarios.ActiveScenarioId" @onchange="SelectAsync" disabled="@(!loaded || _busy)">
+            @foreach (var scenario in scenarios.Scenarios)
+            {
+                <option value="@scenario.Id">@(scenario.IsReal ? scenario.Name : $"{scenario.Name} ({scenario.Events.Count})")</option>
+            }
+        </select>
+        <input type="text" class="name" placeholder="Nuevo escenario" maxlength="60" @bind="_newName" disabled="@(!loaded || _busy)" />
+        <button type="button" @onclick="CreateAsync" disabled="@(!loaded || _busy || string.IsNullOrWhiteSpace(_newName))">Crear</button>
+    </div>
+
+    <div class="row inject">
+        <label for="pw-event">Evento</label>
+        <select id="pw-event" @bind="_type" disabled="@(!loaded || _busy)">
+            @foreach (var type in Enum.GetValues<InjectedEventType>())
+            {
+                <option value="@type">@ScenarioLabels.Of(type)</option>
+            }
+        </select>
+        <label for="pw-event-lap">Vuelta</label>
+        <input id="pw-event-lap" type="number" class="num" min="1" max="@view.Playback.LapCount" placeholder="@currentLap" @bind="_lap" disabled="@(!loaded || _busy)" />
+
+        @switch (_type)
+        {
+            case InjectedEventType.SafetyCar:
+            case InjectedEventType.VirtualSafetyCar:
+            case InjectedEventType.Rain:
+                <label for="pw-event-duration">Vueltas</label>
+                <input id="pw-event-duration" type="number" class="num" min="1" placeholder="@DefaultDuration(_type)" @bind="_duration" disabled="@(!loaded || _busy)" />
+                break;
+        }
+
+        @switch (_type)
+        {
+            case InjectedEventType.Rain:
+                <select @bind="_intensity" disabled="@(!loaded || _busy)" aria-label="Intensidad">
+                    <option value="@RainIntensity.Light">Leve</option>
+                    <option value="@RainIntensity.Heavy">Fuerte</option>
+                </select>
+                break;
+            case InjectedEventType.WingDamage:
+            case InjectedEventType.ErsFailure:
+                <select @bind="_severity" disabled="@(!loaded || _busy)" aria-label="Gravedad">
+                    <option value="@DamageSeverity.Minor">Leve</option>
+                    <option value="@DamageSeverity.Major">Grave</option>
+                </select>
+                break;
+            case InjectedEventType.Puncture:
+                <select @bind="_driver" disabled="@(!loaded || _busy)" aria-label="Piloto">
+                    <option value="0">Foco (#@FocusDriver)</option>
+                    @foreach (var driver in drivers)
+                    {
+                        <option value="@driver.DriverNumber">@driver.Acronym #@driver.DriverNumber</option>
+                    }
+                </select>
+                break;
+            case InjectedEventType.RivalCrash:
+                <select @bind="_relative" disabled="@(!loaded || _busy)" aria-label="Rival adelante o atrás">
+                    <option value="@RivalRelative.Ahead">Adelante</option>
+                    <option value="@RivalRelative.Behind">Atrás</option>
+                </select>
+                <select @bind="_rival" disabled="@(!loaded || _busy)" aria-label="Rival">
+                    <option value="0">Rival inmediato del foco</option>
+                    @foreach (var driver in drivers.Where(driver => driver.DriverNumber != FocusDriver))
+                    {
+                        <option value="@driver.DriverNumber">@driver.Acronym #@driver.DriverNumber</option>
+                    }
+                </select>
+                break;
+        }
+
+        <button type="button" class="inject-button" @onclick="() => InjectAsync(lap)" disabled="@(!loaded || _busy)">Inyectar</button>
+    </div>
+
+    <p class="hint">
+        @(lap <= currentLap ? "Vuelta ≤ actual: efecto inmediato (triage → estrategia)." : $"Vuelta {lap} > actual: queda programado.")
+        Solo afecta Monte Carlo, Jev y la UI; el replay sigue siendo la carrera real.
+    </p>
+
+    @if (scenarios.Error is { } error)
+    {
+        <p class="error" role="alert">@error</p>
+    }
+</section>
+
+@code {
+    private InjectedEventType _type = InjectedEventType.SafetyCar;
+    private int? _lap;
+    private int? _duration;
+    private RainIntensity _intensity = RainIntensity.Light;
+    private DamageSeverity _severity = DamageSeverity.Minor;
+    private int _driver;
+    private RivalRelative _relative = RivalRelative.Ahead;
+    private int _rival;
+    private string? _newName;
+    private bool _busy;
+
+    private int FocusDriver => PitWallOptionsAccessor.Value.FocusDriver;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnChanged;
+        Scenarios.Changed += OnChanged;
+        if (Session.View.State is { } state)
+        {
+            await Scenarios.EnsureLoadedAsync(state.SessionKey);
+        }
+    }
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Scenarios.Changed -= OnChanged;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private int DefaultDuration(InjectedEventType type)
+    {
+        var options = ScenarioOptionsAccessor.Value;
+        return type switch
+        {
+            InjectedEventType.SafetyCar => options.SafetyCarDefaultLaps,
+            InjectedEventType.VirtualSafetyCar => options.VscDefaultLaps,
+            _ => options.RainDefaultLaps,
+        };
+    }
+
+    private async Task SelectAsync(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var scenarioId))
+        {
+            await Scenarios.SelectAsync(scenarioId);
+        }
+    }
+
+    private async Task CreateAsync()
+    {
+        _busy = true;
+        try
+        {
+            if (await Scenarios.CreateAsync(_newName ?? string.Empty) is not null)
+            {
+                _newName = null;
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    // Solo viajan los parámetros del tipo elegido; los vacíos toman los defaults de Scenarios:*.
+    private async Task InjectAsync(int lap)
+    {
+        var parameters = _type switch
+        {
+            InjectedEventType.SafetyCar or InjectedEventType.VirtualSafetyCar => new InjectedEventParameters { DurationLaps = _duration },
+            InjectedEventType.Rain => new InjectedEventParameters { DurationLaps = _duration, Intensity = _intensity },
+            InjectedEventType.Puncture => new InjectedEventParameters { Driver = _driver > 0 ? _driver : null },
+            InjectedEventType.WingDamage or InjectedEventType.ErsFailure => new InjectedEventParameters { Severity = _severity },
+            InjectedEventType.RivalCrash => new InjectedEventParameters { Relative = _relative, Rival = _rival > 0 ? _rival : null },
+            _ => new InjectedEventParameters(),
+        };
+
+        _busy = true;
+        try
+        {
+            await Scenarios.InjectAsync(new InjectEventRequest(_type, lap, parameters));
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

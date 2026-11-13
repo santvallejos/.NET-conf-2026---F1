@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 
 using PitWall.Domain;
 using PitWall.Jev;
+using PitWall.Strategy.Scenarios;
 using PitWall.Web.Services;
 
 namespace PitWall.Web.Hubs;
@@ -18,6 +19,10 @@ namespace PitWall.Web.Hubs;
 [JsonSerializable(typeof(IReadOnlyList<JevDecision>))]
 [JsonSerializable(typeof(JevSettings))]
 [JsonSerializable(typeof(JevMode))]
+[JsonSerializable(typeof(ScenarioView))]
+[JsonSerializable(typeof(InjectEventRequest))]
+[JsonSerializable(typeof(InjectedEvent))]
+[JsonSerializable(typeof(Guid))]
 public sealed partial class PitWallHubJsonContext : JsonSerializerContext
 {
 }

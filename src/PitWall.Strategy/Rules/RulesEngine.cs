@@ -59,6 +59,14 @@ public sealed class RulesEngine
             constraints.Add(Force(ConstraintRules.WingDamage));
         }
 
+        if (features.ErsFailure)
+        {
+            constraints.Add(new Constraint(ConstraintRules.ErsFailure, [], [], null, false)
+            {
+                ForbiddenEnergyModes = [EnergyMode.Deploy, EnergyMode.Overtake],
+            });
+        }
+
         return constraints;
     }
 

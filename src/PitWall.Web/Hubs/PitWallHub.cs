@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using PitWall.Domain;
 using PitWall.Jev;
 using PitWall.Jev.Runtime;
+using PitWall.Strategy.Scenarios;
 using PitWall.Web.Services;
 
 namespace PitWall.Web.Hubs;
@@ -18,7 +19,9 @@ public sealed class PitWallHub(
     JevDecisionStore jevDecisions,
     JevTriggers jevTriggers,
     JevRuntimeOverrides jevOverrides,
-    IOptionsMonitor<JevOptions> jevOptions) : Hub<IPitWallClient>
+    IOptionsMonitor<JevOptions> jevOptions,
+    ScenarioService scenarios,
+    ScenarioStrategyStore hypotheticalStrategies) : Hub<IPitWallClient>
 {
     public const string Route = "/hubs/pitwall";
 
@@ -97,4 +100,35 @@ public sealed class PitWallHub(
         jevOverrides.SetDriverEnabled(driverNumber, enabled);
         return GetJevSettings();
     }
+
+    /// <summary>Escenarios de la sesión activa (<c>Real</c> siempre está) y el activo.</summary>
+    public ScenarioView GetScenarios() => scenarios.View;
+
+    /// <summary>Crea un escenario vacío y lo deja activo; si no se pudo, el motivo viene en <c>error</c>.</summary>
+    [HubMethodName("CreateScenario")]
+    public async Task<ScenarioView> CreateScenarioAsync(string name)
+    {
+        await scenarios.CreateAsync(name, Context.ConnectionAborted);
+        return scenarios.View;
+    }
+
+    [HubMethodName("SelectScenario")]
+    public async Task<ScenarioView> SelectScenarioAsync(Guid scenarioId)
+    {
+        await scenarios.SelectAsync(scenarioId);
+        return scenarios.View;
+    }
+
+    /// <summary>
+    /// Inyecta un evento hipotético en el escenario activo (o en uno nuevo si el activo es <c>Real</c>). Con
+    /// <c>lap</c> ≤ vuelta actual tiene efecto inmediato; si no, queda programado. null si no se pudo.
+    /// </summary>
+    [HubMethodName("InjectEvent")]
+    public Task<InjectedEvent?> InjectEventAsync(InjectEventRequest request) => scenarios.InjectAsync(request, Context.ConnectionAborted);
+
+    /// <summary>Última estrategia HIPOTÉTICA del piloto en el escenario activo, o null.</summary>
+    public StrategySnapshot? GetHypotheticalStrategy(int driverNumber) =>
+        session.View.State is { } state && scenarios.View.Active is { IsReal: false } scenario
+            ? hypotheticalStrategies.Get(state.SessionKey, scenario.Id, driverNumber)?.Publication.Result.Snapshot
+            : null;
 }

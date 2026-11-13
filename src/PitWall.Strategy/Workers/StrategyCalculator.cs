@@ -3,6 +3,7 @@ using PitWall.Strategy.Degradation;
 using PitWall.Strategy.Energy;
 using PitWall.Strategy.MonteCarlo;
 using PitWall.Strategy.Rules;
+using PitWall.Strategy.Scenarios;
 
 namespace PitWall.Strategy.Workers;
 
@@ -61,13 +62,15 @@ public sealed class StrategyCalculator
 
     /// <summary>
     /// Estrategia de <paramref name="driverNumber"/> en su vuelta en curso; <c>null</c> si no está en carrera o la
-    /// carrera ya terminó para él.
+    /// carrera ya terminó para él. Con un escenario hipotético los eventos inyectados activos se aplican como ciertos
+    /// al estado, a las reglas y a Monte Carlo, y el snapshot queda marcado <see cref="StrategySnapshot.Hypothetical"/>.
     /// </summary>
     public StrategyResult? Calculate(StrategyContext context, int driverNumber)
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var state = context.State;
+        var scenario = context.Scenario;
+        var state = scenario.Apply(context.State);
         var car = state.Cars.FirstOrDefault(candidate => candidate.DriverNumber == driverNumber);
         if (car is null || car.Lap < 1 || car.Lap > context.TotalLaps)
         {
@@ -84,6 +87,7 @@ public sealed class StrategyCalculator
         var compounds = FreshTyreModels(context, driverNumber, tyre);
 
         var overtakeDisabled = OvertakeSignals.IsOvertakeDisabled(context.RaceControl);
+        var ersFailure = scenario.ErsFailures.ContainsKey(driverNumber);
         var energy = context.Energy.TryGetValue(driverNumber, out var estimate)
             ? estimate
             : new EnergyEstimate(100.0, 0, 0, EnergyModel.IsOvertakeAvailable(car.Interval, overtakeDisabled), IsEstimated: true);
@@ -91,27 +95,39 @@ public sealed class StrategyCalculator
         var rainRisk = RainSignals.RainRisk(context.RaceControl);
 
         var index = running.FindIndex(candidate => candidate.DriverNumber == driverNumber);
+        var rain = scenario.Rain != RainIntensity.None ? scenario.Rain
+            : state.Weather.Rainfall ? RainIntensity.Light
+            : RainIntensity.None;
+        var previousRain = scenario.PreviousRain != RainIntensity.None ? scenario.PreviousRain
+            : context.PreviousRainfall ? RainIntensity.Light
+            : RainIntensity.None;
         var features = new RuleFeatures(
             state.Track,
             RaceControlSignals.IsPitLaneClosed(context.RaceControl),
-            state.Weather.Rainfall ? RainIntensity.Light : RainIntensity.None,
-            context.PreviousRainfall ? RainIntensity.Light : RainIntensity.None,
+            rain,
+            previousRain,
             RainForecast: rainRisk > 0,
-            context.TrackWet,
+            context.TrackWet || scenario.Rain != RainIntensity.None || scenario.PreviousRain != RainIntensity.None,
             UsedCompounds(context, driverNumber),
             tyre,
             energy,
             GapBehind: index + 1 < running.Count ? running[index + 1].Interval : null,
             RivalAheadPitted: index > 0 && running[index - 1].InPit,
             ExitGap(running, car, pitLossMean),
-            context.PuncturedDrivers.Contains(driverNumber),
-            DamageSeverity.None,
-            RivalIncident: false,
-            ErsFailure: false);
+            context.PuncturedDrivers.Contains(driverNumber) || scenario.PuncturedDrivers.Contains(driverNumber),
+            scenario.WingDamage.GetValueOrDefault(driverNumber),
+            scenario.RivalIncidentDrivers.Contains(driverNumber),
+            ersFailure);
         var constraints = _rules.EvaluateConstraints(features);
         var reasons = _rules.EvaluateReasons(features);
 
-        var candidates = CandidateGenerator.Generate(lap, context.TotalLaps, tyre, compounds, constraints);
+        // Bandera roja: el cambio de gomas en parrilla es libre, así que STAY_OUT sigue con goma nueva.
+        var candidateTyre = scenario.RedFlag ? tyre with { TyreAge = 0, LapsToCliff = _degradation.LapsToCliff(tyre.DegPerLap, 0) } : tyre;
+        var candidates = CandidateGenerator.Generate(lap, context.TotalLaps, candidateTyre, compounds, constraints);
+        var neutralisation = state.Track.SafetyCar ? Neutralisation.SafetyCar
+            : state.Track.VirtualSafetyCar ? Neutralisation.VirtualSafetyCar
+            : Neutralisation.None;
+        var injectedNeutralisation = neutralisation != Neutralisation.None && scenario.Neutralisation == neutralisation;
         var input = new MonteCarloInput(
             driverNumber,
             lap,
@@ -120,16 +136,27 @@ public sealed class StrategyCalculator
             compounds,
             state.Weather.Rainfall,
             rainRisk,
-            state.Track.SafetyCar ? Neutralisation.SafetyCar
-                : state.Track.VirtualSafetyCar ? Neutralisation.VirtualSafetyCar
-                : Neutralisation.None,
+            neutralisation,
             pitLossMean,
             pitLossSigma,
             OvertakeBase(context),
-            OvertakeModeEnabled: !overtakeDisabled,
+            OvertakeModeEnabled: !overtakeDisabled && !ersFailure,
             _degradationOptions.FuelCoefSecondsPerLap,
             features.Puncture,
-            _options.Seed);
+            _options.Seed)
+        {
+            ActiveNeutralisationLaps = injectedNeutralisation ? scenario.NeutralisationLapsLeft : null,
+            ActiveNeutralisationPitLossFactor = injectedNeutralisation ? scenario.NeutralisationPitLossFactor : null,
+            CompressGapsAtStart = injectedNeutralisation && neutralisation == Neutralisation.SafetyCar,
+            RedFlag = scenario.RedFlag,
+            ForcedRainLaps = scenario.RainLapsLeft,
+            HeavyRain = scenario.Rain == RainIntensity.Heavy,
+            SafetyCarProbabilityFirstLap = scenario.SafetyCarProbability,
+            RepairablePacePenalties = scenario.RepairablePacePenalties,
+            PermanentPacePenalties = scenario.PermanentPacePenalties,
+            PunctureLossMinSeconds = scenario.PunctureLossMinSeconds,
+            PunctureLossMaxSeconds = scenario.PunctureLossMaxSeconds,
+        };
 
         var monteCarloStarted = _timeProvider.GetTimestamp();
         IReadOnlyList<StrategyOutcome> outcomes = candidates.Count == 0 ? [] : _simulator.Run(input, candidates);
@@ -145,7 +172,10 @@ public sealed class StrategyCalculator
                 .ThenBy(outcome => outcome.ExpectedRaceTimeDelta)
                 .ThenBy(outcome => outcome.StrategyId, StringComparer.Ordinal)],
             reasons,
-            constraints);
+            constraints)
+        {
+            Hypothetical = scenario.Hypothetical,
+        };
         return new StrategyResult(snapshot, _simulator.Iterations, _timeProvider.GetElapsedTime(started), monteCarloDuration);
     }
 

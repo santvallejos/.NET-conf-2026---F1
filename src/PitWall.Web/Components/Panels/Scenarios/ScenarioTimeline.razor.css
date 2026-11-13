@@ -1,0 +1,104 @@
+.scenario-timeline {
+    min-height: 0;
+}
+
+.tag {
+    margin-left: 0.5rem;
+    padding: 0 0.35rem;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: normal;
+    vertical-align: middle;
+}
+
+.tag.hypothetical { color: var(--pw-flag-sc); }
+
+.strategy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 0.875rem;
+}
+
+.strategy .label,
+.muted,
+.waiting {
+    color: var(--pw-muted);
+}
+
+.strategy .best {
+    font-weight: 700;
+}
+
+.timeline {
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.timeline > li {
+    padding: 0.3rem 0 0.3rem 0.6rem;
+    border-left: 2px solid var(--pw-border);
+}
+
+.event {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.event .type {
+    font-weight: 700;
+}
+
+.event .params {
+    color: var(--pw-muted);
+    font-size: 0.85rem;
+}
+
+.status {
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.status.activo { color: var(--pw-flag-sc); }
+.status.programado { color: var(--pw-accent); }
+.status.terminado { color: var(--pw-muted); }
+
+.decisions {
+    margin: 0.2rem 0 0;
+    padding-left: 0.8rem;
+    font-size: 0.85rem;
+    list-style: none;
+}
+
+.decisions li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+}
+
+.driver {
+    min-width: 2.5rem;
+    font-weight: 700;
+}
+
+.call.triage {
+    color: var(--pw-muted);
+}
+
+.reasons {
+    font-size: 0.75rem;
+}
+
+.waiting {
+    margin: 0.2rem 0 0 0.8rem;
+    font-size: 0.8rem;
+}

@@ -21,12 +21,14 @@ namespace PitWall.Web.Services;
 /// Race Control o eventos inyectados y estrategia según <c>Jev:Mode</c>, el botón "Consultar Jev" o un triage
 /// <c>ACT_NOW</c>. Cada respuesta se mapea a <see cref="JevDecision"/>, se guarda en <c>JevDecisionLog</c> y se
 /// publica por <see cref="PitWallHub"/>. Lee la configuración en cada pedido, así que los cambios en caliente
-/// (<c>Jev:Enabled</c>, modo, vueltas, pilotos) aplican al siguiente.
+/// (<c>Jev:Enabled</c>, modo, vueltas, pilotos) aplican al siguiente. El triage de un evento inyectado en un escenario
+/// usa el estado y la estrategia hipotéticos de <see cref="ScenarioStrategyStore"/>; sus decisiones son hipotéticas.
 /// </summary>
 public sealed partial class JevWorker(
     ReplayEngine engine,
     PitWallSession session,
     StrategyStore strategies,
+    ScenarioStrategyStore hypotheticalStrategies,
     JevTriggers triggers,
     JevDecisionStore decisions,
     IJevClient client,
@@ -106,7 +108,7 @@ public sealed partial class JevWorker(
     {
         var snapshot = publication.Result.Snapshot;
         return JevTriggerPolicy.OnLapCompleted(options.CurrentValue, snapshot.DriverNumber, snapshot.Lap) is { } trigger
-            ? StrategyAsync(publication, trigger, null, [], cancellationToken)
+            ? StrategyAsync(publication, trigger, null, [], null, cancellationToken)
             : Task.CompletedTask;
     }
 
@@ -119,7 +121,7 @@ public sealed partial class JevWorker(
             return;
         }
 
-        await StrategyAsync(publication, JevTrigger.Manual, null, [], cancellationToken);
+        await StrategyAsync(publication, JevTrigger.Manual, null, [], null, cancellationToken);
     }
 
     private async Task TriageRaceControlAsync(RaceState state, CancellationToken cancellationToken)
@@ -132,7 +134,7 @@ public sealed partial class JevWorker(
                 .ToList();
             if (messages.Count > 0)
             {
-                await TriageAsync(state, driverNumber, messages, [], null, cancellationToken);
+                await TriageAsync(state, driverNumber, messages, [], null, strategies.GetPublication(state.SessionKey, driverNumber), [], null, cancellationToken);
             }
         }
     }
@@ -146,16 +148,39 @@ public sealed partial class JevWorker(
 
         foreach (var driverNumber in options.CurrentValue.Drivers)
         {
-            await TriageAsync(state, driverNumber, [], [injected.Event], injected.ScenarioId, cancellationToken);
+            if (injected.ScenarioId is not { } scenarioId)
+            {
+                await TriageAsync(state, driverNumber, [], [injected.Event], null, strategies.GetPublication(state.SessionKey, driverNumber), [injected.Event], injected.EventId, cancellationToken);
+                continue;
+            }
+
+            // Estado y estrategia del escenario: el evento ya está aplicado (p. ej. SC desplegado, rival fuera).
+            var hypothetical = hypotheticalStrategies.Get(state.SessionKey, scenarioId, driverNumber);
+            await TriageAsync(
+                hypothetical?.Publication.State ?? state,
+                driverNumber,
+                [],
+                [injected.Event],
+                scenarioId,
+                hypothetical?.Publication,
+                hypothetical?.Injected ?? [injected.Event],
+                injected.EventId,
+                cancellationToken);
         }
     }
 
+    /// <param name="publication">Estrategia con la que se consulta si el triage da <c>ACT_NOW</c>.</param>
+    /// <param name="strategyInjected">Eventos inyectados que viajan en el state de esa estrategia.</param>
+    /// <param name="eventId">Evento inyectado que dispara el triage, para el timeline del escenario.</param>
     private async Task TriageAsync(
         RaceState state,
         int driverNumber,
         IReadOnlyList<string> raceControl,
         IReadOnlyList<string> injected,
         Guid? scenarioId,
+        StrategyPublication? publication,
+        IReadOnlyList<string> strategyInjected,
+        int? eventId,
         CancellationToken cancellationToken)
     {
         var current = options.CurrentValue;
@@ -165,7 +190,6 @@ public sealed partial class JevWorker(
             return;
         }
 
-        var publication = strategies.GetPublication(state.SessionKey, driverNumber);
         var request = JevRequestFactory.Triage(
             current.Model,
             new JevTriageInput(state.SessionKey, state, driverNumber, raceControl, injected));
@@ -177,7 +201,7 @@ public sealed partial class JevWorker(
             car.Lap,
             JevTrigger.Triage,
             publication?.Result.Snapshot.Reasons ?? []);
-        if (await DecideAsync(input, request, cancellationToken) is not { } triage
+        if (await DecideAsync(input, request, eventId, cancellationToken) is not { } triage
             || !JevTriggerPolicy.TriageTriggersStrategy(options.CurrentValue, triage))
         {
             return;
@@ -189,7 +213,7 @@ public sealed partial class JevWorker(
             return;
         }
 
-        await StrategyAsync(publication, JevTrigger.Triage, scenarioId, injected, cancellationToken);
+        await StrategyAsync(publication, JevTrigger.Triage, scenarioId, strategyInjected, eventId, cancellationToken);
     }
 
     private async Task StrategyAsync(
@@ -197,6 +221,7 @@ public sealed partial class JevWorker(
         JevTrigger trigger,
         Guid? scenarioId,
         IReadOnlyList<string> injected,
+        int? eventId,
         CancellationToken cancellationToken)
     {
         var current = options.CurrentValue;
@@ -227,16 +252,21 @@ public sealed partial class JevWorker(
             snapshot.Lap,
             trigger,
             snapshot.Reasons);
-        await DecideAsync(input, request, cancellationToken);
+        await DecideAsync(input, request, eventId, cancellationToken);
     }
 
-    private async Task<JevDecision?> DecideAsync(JevDecisionInput input, JevRequest request, CancellationToken cancellationToken)
+    private async Task<JevDecision?> DecideAsync(JevDecisionInput input, JevRequest request, int? eventId, CancellationToken cancellationToken)
     {
         var response = await client.SystemOneAsync(request, cancellationToken);
         if (JevDecisionMapper.Map(input, request, response) is not { } decision)
         {
             LogNotAnswered(request.Kind, input.DriverNumber, input.Lap, response.Status);
             return null;
+        }
+
+        if (eventId is { } injectedEvent)
+        {
+            hypotheticalStrategies.LinkDecision(decision.SessionKey, decision.Id, injectedEvent);
         }
 
         decisions.Add(decision);

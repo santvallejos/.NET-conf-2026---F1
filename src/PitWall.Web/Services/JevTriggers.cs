@@ -27,11 +27,12 @@ public sealed class JevTriggers
 
     /// <summary>Triage ante un evento inyectado; con <paramref name="scenarioId"/> la decisión es hipotética.</summary>
     /// <param name="injectedEvent">Descripción compacta del evento que viaja en <c>injected</c> del state.</param>
-    public void RequestTriage(string injectedEvent, Guid? scenarioId = null)
+    /// <param name="eventId">Id del evento en el escenario; sus decisiones quedan asociadas a él en el timeline.</param>
+    public void RequestTriage(string injectedEvent, Guid? scenarioId = null, int? eventId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(injectedEvent);
 
-        Write(new JevWorkItem.Injected(injectedEvent, scenarioId));
+        Write(new JevWorkItem.Injected(injectedEvent, scenarioId, eventId));
     }
 
     internal void OnStrategyPublished(StrategyPublication publication) => Write(new JevWorkItem.StrategyCalculated(publication));

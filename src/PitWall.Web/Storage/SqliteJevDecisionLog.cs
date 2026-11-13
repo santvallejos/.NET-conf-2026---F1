@@ -31,10 +31,7 @@ public sealed partial class SqliteJevDecisionLog(
             db.JevDecisionLog.Add(new JevDecisionLog
             {
                 SessionKey = decision.SessionKey,
-
-                // La columna referencia a Scenario (id entero) y la decisión usa Guid: hasta que los escenarios se
-                // persistan queda null; ScenarioId e Hypothetical viajan igual en ResponseJson.
-                ScenarioId = null,
+                ScenarioId = ScenarioKeys.ToDatabaseId(decision.ScenarioId),
                 DriverNumber = decision.DriverNumber,
                 Lap = decision.Lap,
                 Kind = decision.Kind,

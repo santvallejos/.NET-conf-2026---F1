@@ -1,5 +1,6 @@
 using PitWall.Domain;
 using PitWall.Strategy.Degradation;
+using PitWall.Strategy.Scenarios;
 
 namespace PitWall.Strategy.Workers;
 
@@ -24,4 +25,8 @@ public sealed record StrategyContext(
     IReadOnlyList<double> PitLaneDurations,
     int Overtakes,
     IReadOnlyDictionary<int, EnergyEstimate> Energy,
-    IReadOnlySet<int> PuncturedDrivers);
+    IReadOnlySet<int> PuncturedDrivers)
+{
+    /// <summary>Eventos inyectados del escenario activo; <see cref="ScenarioEffects.None"/> en la carrera real.</summary>
+    public ScenarioEffects Scenario { get; init; } = ScenarioEffects.None;
+}

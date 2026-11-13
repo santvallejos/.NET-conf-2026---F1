@@ -20,6 +20,7 @@ builder.Services.AddPitWallUi(builder.Configuration);
 builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddPitWallEnergy(builder.Configuration);
 builder.Services.AddPitWallStrategy(builder.Configuration);
+builder.Services.AddPitWallScenarios(builder.Configuration);
 builder.Services.AddPitWallJevWorker();
 builder.Services.AddPitWallJevVsTeam();
 builder.Services.AddOpenTelemetry()

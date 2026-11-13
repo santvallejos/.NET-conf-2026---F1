@@ -34,4 +34,12 @@ public static class JevAllowedOptions
 
         return [.. Enum.GetValues<Compound>().Where(compound => !constraints.Any(c => c.ForbiddenCompounds.Contains(compound)))];
     }
+
+    /// <summary>Modos de energía permitidos (p. ej. sin <c>DEPLOY</c>/<c>OVERTAKE</c> con falla de ERS).</summary>
+    public static IReadOnlyList<EnergyMode> EnergyModes(IReadOnlyList<Constraint> constraints)
+    {
+        ArgumentNullException.ThrowIfNull(constraints);
+
+        return [.. Enum.GetValues<EnergyMode>().Where(mode => !constraints.Any(c => c.ForbiddenEnergyModes.Contains(mode)))];
+    }
 }

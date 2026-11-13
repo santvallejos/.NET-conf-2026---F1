@@ -14,4 +14,8 @@ public sealed record Constraint(
     IReadOnlyList<PitCall> ForbiddenCalls,
     IReadOnlyList<Compound> ForbiddenCompounds,
     PitCall? ForcedCall,
-    bool RequiresSecondDryCompound);
+    bool RequiresSecondDryCompound)
+{
+    /// <summary>Modos de energía descartados (p. ej. <c>DEPLOY</c>/<c>OVERTAKE</c> con falla de ERS).</summary>
+    public IReadOnlyList<EnergyMode> ForbiddenEnergyModes { get; init; } = [];
+}

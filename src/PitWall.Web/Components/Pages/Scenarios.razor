@@ -1,0 +1,10 @@
+@page "/panel/scenarios"
+@using PitWall.Web.Components.Panels.Scenarios
+
+<PageTitle>PitWall · Escenarios</PageTitle>
+
+@* Ruta propia del panel para abrirlo en otra ventana (docs/ui.md §3, ensayo multi-monitor). *@
+<div class="standalone-panel">
+    <ScenarioInjector @rendermode="InteractiveServer" />
+    <ScenarioTimeline @rendermode="InteractiveServer" />
+</div>

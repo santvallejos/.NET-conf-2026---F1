@@ -79,6 +79,10 @@ public sealed class MonteCarloOptions
     [Range(0.0, 60.0)]
     public double WetCompoundInDryPenaltySeconds { get; set; } = 3.0;
 
+    /// <summary>ESTIMADO: multiplicador de la pérdida de un compuesto seco con lluvia fuerte inyectada.</summary>
+    [Range(1.0, 10.0)]
+    public double HeavyRainPenaltyFactor { get; set; } = 2.0;
+
     /// <summary>ESTIMADO: probabilidad base de completar un adelantamiento cuando el ritmo alcanza al de adelante.</summary>
     [Range(0.0, 1.0)]
     public double OvertakeBaseProbability { get; set; } = 0.3;

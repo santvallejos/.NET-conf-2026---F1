@@ -75,7 +75,7 @@ public static class JevRequestFactory
         AddChoice(questions, JevQuestionKeys.PitCall, "Decide the pit call for the focus car this lap.", JevContractNames.Of(JevAllowedOptions.PitCalls(snapshot.Constraints)));
         AddChoice(questions, JevQuestionKeys.Compound, "Choose the compound to fit if the focus car pits.", JevContractNames.Of(JevAllowedOptions.Compounds(snapshot.Constraints)));
         AddChoice(questions, JevQuestionKeys.PaceMode, "Choose the pace mode for the focus car this lap.", JevContractNames.Of(Enum.GetValues<PaceMode>()));
-        AddChoice(questions, JevQuestionKeys.EnergyMode, "Choose the energy mode for the focus car this lap.", JevContractNames.Of(Enum.GetValues<EnergyMode>()));
+        AddChoice(questions, JevQuestionKeys.EnergyMode, "Choose the energy mode for the focus car this lap.", JevContractNames.Of(JevAllowedOptions.EnergyModes(snapshot.Constraints)));
 
         return new JevRequest(model, JevSerializer.SerializeState(state), questions)
         {

@@ -8,4 +8,8 @@ public sealed record StrategySnapshot(
     EnergyEstimate Energy,
     IReadOnlyList<StrategyOutcome> Outcomes,
     IReadOnlyList<Reason> Reasons,
-    IReadOnlyList<Constraint> Constraints);
+    IReadOnlyList<Constraint> Constraints)
+{
+    /// <summary>Calculada sobre un escenario con eventos inyectados (etiqueta HIPOTÉTICO), no sobre la carrera real.</summary>
+    public bool Hypothetical { get; init; }
+}

@@ -15,6 +15,8 @@ namespace PitWall.Strategy.MonteCarlo;
 /// queda detrás.</item>
 /// <item>Rivales: misma dinámica con su propio modelo; paran en su cliff (o por la regla de compuestos) y ante
 /// un cambio de clima.</item>
+/// <item>Eventos inyectados de un escenario (docs/scenarios.md): ciertos en todas las iteraciones (SC/VSC con su
+/// duración y pit loss, bandera roja, lluvia, pinchazo, pérdidas de ritmo por alerón o ERS, SC tras un choque).</item>
 /// </list>
 /// El replay no se modifica. Determinista: la candidata <c>i</c> deriva sus semillas de <c>Random(Seed ^ i)</c>, así
 /// que el resultado no depende del orden en que <see cref="Parallel"/> ejecute el trabajo.
@@ -46,6 +48,10 @@ public sealed class MonteCarloSimulator
     {
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(candidates);
+        if ((input.PunctureLossMinSeconds ?? _options.PunctureLossMinSeconds) > (input.PunctureLossMaxSeconds ?? _options.PunctureLossMaxSeconds))
+        {
+            throw new ArgumentException("The puncture loss minimum exceeds the maximum.", nameof(input));
+        }
 
         foreach (var candidate in candidates)
         {
@@ -116,7 +122,8 @@ public sealed class MonteCarloSimulator
         var pitLossMean = input.PitLossMean;
         var pitLossSigma = input.PitLossSigma;
         var probSafetyCar = options.ProbSafetyCarPerLap;
-        var probNeutralised = options.ProbSafetyCarPerLap + options.ProbVscPerLap;
+        var probVsc = options.ProbVscPerLap;
+        var firstLapSafetyCar = input.SafetyCarProbabilityFirstLap;
         var safetyCarLaps = options.SafetyCarLaps;
         var vscLaps = options.VscLaps;
         var safetyCarGap = options.SafetyCarGapSeconds;
@@ -124,9 +131,12 @@ public sealed class MonteCarloSimulator
         var vscLap = field.VscLap;
         var safetyCarPitLoss = options.SafetyCarPitLossFactor;
         var vscPitLoss = options.VscPitLossFactor;
-        var punctureMin = options.PunctureLossMinSeconds;
-        var punctureRange = options.PunctureLossMaxSeconds - options.PunctureLossMinSeconds;
+        var punctureMin = input.PunctureLossMinSeconds ?? options.PunctureLossMinSeconds;
+        var punctureRange = (input.PunctureLossMaxSeconds ?? options.PunctureLossMaxSeconds) - punctureMin;
         var dryInRain = options.DryCompoundInRainPenaltySeconds;
+        var heavyDryInRain = dryInRain * (input.HeavyRain ? options.HeavyRainPenaltyFactor : 1.0);
+        // Lluvia inyectada: cierta en las vueltas < forcedRainEnd.
+        var forcedRainEnd = firstLap + input.ForcedRainLaps;
         var wetInDry = options.WetCompoundInDryPenaltySeconds;
         var rainStop = options.RainStopProbPerLap;
         var rainStart = field.RainStartProbPerLap;
@@ -156,14 +166,17 @@ public sealed class MonteCarloSimulator
             cars[focus].StopLap = candidate.StopLap ?? -1;
 
             var punctured = input.Puncture;
-            var raining = input.Raining;
-            var neutralisation = input.ActiveNeutralisation;
-            var neutralisedLaps = neutralisation switch
+            var raining = input.Raining || input.ForcedRainLaps > 0;
+
+            // La bandera roja se simula como una vuelta neutralizada (sin adelantamientos) antes de la reanudación.
+            var neutralisation = input.RedFlag ? Neutralisation.SafetyCar : input.ActiveNeutralisation;
+            var neutralisedLaps = input.RedFlag ? 1 : neutralisation switch
             {
-                Neutralisation.SafetyCar => safetyCarLaps,
-                Neutralisation.VirtualSafetyCar => vscLaps,
+                Neutralisation.SafetyCar => input.ActiveNeutralisationLaps ?? safetyCarLaps,
+                Neutralisation.VirtualSafetyCar => input.ActiveNeutralisationLaps ?? vscLaps,
                 _ => 0,
             };
+            var neutralPitLoss = input.ActiveNeutralisationPitLossFactor ?? (neutralisation == Neutralisation.SafetyCar ? safetyCarPitLoss : vscPitLoss);
 
             for (var lap = firstLap; lap <= totalLaps; lap++)
             {
@@ -171,16 +184,19 @@ public sealed class MonteCarloSimulator
                 {
                     neutralisation = Neutralisation.None;
                     var draw = random.NextDouble();
-                    if (draw < probSafetyCar)
+                    var lapSafetyCar = lap == firstLap && firstLapSafetyCar is { } injected ? injected : probSafetyCar;
+                    if (draw < lapSafetyCar)
                     {
                         neutralisation = Neutralisation.SafetyCar;
                         neutralisedLaps = safetyCarLaps;
+                        neutralPitLoss = safetyCarPitLoss;
                         BunchUp(cars, order, safetyCarGap);
                     }
-                    else if (draw < probNeutralised)
+                    else if (draw < lapSafetyCar + probVsc)
                     {
                         neutralisation = Neutralisation.VirtualSafetyCar;
                         neutralisedLaps = vscLaps;
+                        neutralPitLoss = vscPitLoss;
                     }
                 }
 
@@ -191,15 +207,10 @@ public sealed class MonteCarloSimulator
 
                 var neutralised = neutralisation != Neutralisation.None;
                 var neutralLap = neutralisation == Neutralisation.SafetyCar ? safetyCarLap : vscLap;
-                var pitLossFactor = neutralisation switch
-                {
-                    Neutralisation.SafetyCar => safetyCarPitLoss,
-                    Neutralisation.VirtualSafetyCar => vscPitLoss,
-                    _ => 1.0,
-                };
+                var pitLossFactor = neutralised ? neutralPitLoss : 1.0;
                 var fuel = fuelCoef * (totalLaps - lap);
                 // Compuesto que no corresponde al clima: seco con lluvia o de lluvia con pista seca.
-                var dryPenalty = raining ? dryInRain : 0;
+                var dryPenalty = raining ? (lap < forcedRainEnd ? heavyDryInRain : dryInRain) : 0;
                 var wetPenalty = raining ? 0 : wetInDry;
 
                 for (var i = 0; i < n; i++)
@@ -235,7 +246,7 @@ public sealed class MonteCarloSimulator
                             noise = quantiles[bits & StandardNormal.Mask];
                         }
 
-                        time = car.Pace + fuel + (car.Sigma * noise) + (car.Dry ? dryPenalty : wetPenalty);
+                        time = car.Pace + fuel + (car.Sigma * noise) + (car.Dry ? dryPenalty : wetPenalty) + car.Penalty + car.PermanentPenalty;
                     }
 
                     if (punctured && i == focus)
@@ -246,6 +257,7 @@ public sealed class MonteCarloSimulator
                     if (stop)
                     {
                         time += Math.Max(0, pitLossMean + (pitLossSigma * StandardNormal.BoxMuller(random))) * pitLossFactor;
+                        car.Penalty = 0;
                         if (i == focus)
                         {
                             punctured = false;
@@ -284,7 +296,7 @@ public sealed class MonteCarloSimulator
                 overtakes.Resolve(cars, order, random, neutralised);
 
                 var weatherDraw = random.NextDouble();
-                raining = raining ? weatherDraw >= rainStop : weatherDraw < rainStart;
+                raining = lap + 1 < forcedRainEnd || (raining ? weatherDraw >= rainStop : weatherDraw < rainStart);
             }
 
             var position = Array.IndexOf(order, focus) + 1;
@@ -369,6 +381,12 @@ public sealed class MonteCarloSimulator
         public double Sigma;
 
         public double LapTime;
+
+        /// <summary>Pérdida por vuelta inyectada que se repara al parar (alerón).</summary>
+        public double Penalty;
+
+        /// <summary>Pérdida por vuelta inyectada hasta el final (ERS).</summary>
+        public double PermanentPenalty;
 
         /// <summary>Vuelta en la que para, o -1.</summary>
         public int StopLap;
@@ -523,12 +541,15 @@ public sealed class MonteCarloSimulator
                 Start[i] = new SimulatedCar
                 {
                     Cumulative = car.GapToLeader,
-                    Pace = tyre.BaseLapTime + (tyre.DegPerLap * tyre.TyreAge),
+                    // Bandera roja: goma nueva del mismo compuesto para todos (cambio libre en parrilla).
+                    Pace = tyre.BaseLapTime + (input.RedFlag ? 0 : tyre.DegPerLap * tyre.TyreAge),
                     Base = tyre.BaseLapTime,
                     Deg = tyre.DegPerLap,
                     Sigma = tyre.ResidualSigma,
                     StopLap = RivalStopLap(car, input),
                     Dry = IsDry(tyre.Compound),
+                    Penalty = input.RepairablePacePenalties.GetValueOrDefault(car.DriverNumber),
+                    PermanentPenalty = input.PermanentPacePenalties.GetValueOrDefault(car.DriverNumber),
                 };
             }
 
@@ -538,6 +559,11 @@ public sealed class MonteCarloSimulator
             }
 
             StartOrder = [.. Enumerable.Range(0, count).OrderBy(i => Start[i].Cumulative)];
+            if (input.CompressGapsAtStart || input.RedFlag)
+            {
+                BunchUp(Start, StartOrder, options.SafetyCarGapSeconds);
+            }
+
             FocusStartPosition = Array.IndexOf(StartOrder, FocusIndex) + 1;
             var fastest = input.Cars.Min(car => car.Tyre.BaseLapTime);
             SafetyCarLap = fastest * options.SafetyCarLapFactor;
@@ -563,10 +589,14 @@ public sealed class MonteCarloSimulator
         public double OvertakeBase { get; }
 
         // Un rival para en su cliff si llega antes del final; si debe el segundo compuesto seco y no llega al
-        // cliff, en la penúltima vuelta. Sin parada: -1.
+        // cliff, en la penúltima vuelta. Sin parada: -1. Tras la bandera roja cuenta el cliff de la goma nueva.
         private static int RivalStopLap(MonteCarloCar car, MonteCarloInput input)
         {
             var lapsToCliff = car.Tyre.LapsToCliff;
+            if (input.RedFlag && lapsToCliff != TyreDegradationModel.NoCliff)
+            {
+                lapsToCliff += car.Tyre.TyreAge;
+            }
             if (lapsToCliff != TyreDegradationModel.NoCliff && input.Lap + lapsToCliff < input.TotalLaps)
             {
                 return input.Lap + lapsToCliff;
