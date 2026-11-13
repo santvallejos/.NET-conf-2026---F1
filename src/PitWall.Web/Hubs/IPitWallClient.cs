@@ -13,4 +13,7 @@ public interface IPitWallClient
 
     /// <summary>Estrategia recién calculada de un piloto al cerrar una vuelta.</summary>
     Task OnStrategySnapshot(StrategySnapshot snapshot);
+
+    /// <summary>Decisión nueva de Jev (triage o estrategia).</summary>
+    Task OnJevDecision(JevDecision decision);
 }

@@ -126,7 +126,7 @@ public sealed class StrategyWorker(
                 continue;
             }
 
-            store.Publish(state.SessionKey, result);
+            store.Publish(state, result);
             metrics.RecordMonteCarlo(result.MonteCarloDuration, car.DriverNumber);
             logger.LogDebug(
                 "Strategy for driver {DriverNumber} on lap {Lap}: {Candidates} candidates × {Iterations} iterations in {Elapsed} ms",

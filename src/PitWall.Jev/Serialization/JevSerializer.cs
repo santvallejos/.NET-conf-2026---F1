@@ -65,6 +65,22 @@ public static class JevSerializer
         return JsonSerializer.Serialize(entries.ToList(), Context.ListJevMonteCarloEntry);
     }
 
+    /// <summary><c>state</c> de estrategia como JSON compacto.</summary>
+    public static string SerializeState(JevStrategyState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        return JsonSerializer.Serialize(state, Context.JevStrategyState);
+    }
+
+    /// <summary><c>state</c> de triage como JSON compacto.</summary>
+    public static string SerializeState(JevTriageState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+
+        return JsonSerializer.Serialize(state, Context.JevTriageState);
+    }
+
     public static IReadOnlyList<JevMonteCarloEntry> DeserializeMonteCarlo(JsonElement element) =>
         element.Deserialize(Context.ListJevMonteCarloEntry) ?? [];
 }

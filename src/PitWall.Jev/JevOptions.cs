@@ -21,6 +21,19 @@ public sealed class JevOptions
     [Required]
     public string Model { get; set; } = "jev-latest";
 
+    public JevMode Mode { get; set; } = JevMode.EveryLap;
+
+    // Laps y Drivers sin default en código: el binder agrega los valores de configuración a los de un array ya
+    // inicializado.
+
+    /// <summary>Vueltas en las que se consulta la estrategia con <see cref="JevMode.SpecificLaps"/>.</summary>
+    public int[] Laps { get; set; } = [];
+
+    /// <summary>Pilotos con Jev activo (on/off por piloto).</summary>
+    public int[] Drivers { get; set; } = [];
+
+    public JevTriageOptions Triage { get; set; } = new();
+
     public JevCacheOptions Cache { get; set; } = new();
 
     [Range(0, int.MaxValue)]

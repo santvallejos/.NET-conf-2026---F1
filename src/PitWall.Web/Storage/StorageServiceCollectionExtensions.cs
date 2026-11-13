@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using PitWall.Data;
 using PitWall.Jev.Caching;
+using PitWall.Jev.Decisions;
 
 namespace PitWall.Web.Storage;
 
@@ -33,6 +34,7 @@ public static class StorageServiceCollectionExtensions
             options.UseSqlite($"Data Source={databasePath};Mode=ReadWrite"));
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IJevCacheStore, SqliteJevCacheStore>();
+        services.AddSingleton<IJevDecisionLog, SqliteJevDecisionLog>();
 
         return services;
     }

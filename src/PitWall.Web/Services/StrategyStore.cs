@@ -1,3 +1,4 @@
+using PitWall.Domain;
 using PitWall.Strategy.Workers;
 
 namespace PitWall.Web.Services;
@@ -9,14 +10,26 @@ namespace PitWall.Web.Services;
 public sealed class StrategyStore
 {
     private readonly Lock _gate = new();
-    private Dictionary<int, StrategyResult> _results = [];
+    private Dictionary<int, StrategyPublication> _results = [];
     private int? _sessionKey;
 
     /// <summary>Se dispara (desde el hilo del worker) cada vez que cambia algún resultado.</summary>
     public event Action? Changed;
 
+    /// <summary>Se dispara (desde el hilo del worker) con cada resultado nuevo, después de <see cref="Changed"/>.</summary>
+    public event Action<StrategyPublication>? Published;
+
     /// <summary>Último resultado de <paramref name="driverNumber"/> en <paramref name="sessionKey"/>, o null.</summary>
     public StrategyResult? Get(int sessionKey, int driverNumber)
+    {
+        lock (_gate)
+        {
+            return _sessionKey == sessionKey ? _results.GetValueOrDefault(driverNumber)?.Result : null;
+        }
+    }
+
+    /// <summary>Último resultado de <paramref name="driverNumber"/> con su estado de carrera, o null.</summary>
+    public StrategyPublication? GetPublication(int sessionKey, int driverNumber)
     {
         lock (_gate)
         {
@@ -24,22 +37,26 @@ public sealed class StrategyStore
         }
     }
 
-    public void Publish(int sessionKey, StrategyResult result)
+    /// <param name="state">Estado de carrera con el que se calculó <paramref name="result"/>.</param>
+    public void Publish(RaceState state, StrategyResult result)
     {
+        ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(result);
 
+        var publication = new StrategyPublication(state, result);
         lock (_gate)
         {
-            if (_sessionKey != sessionKey)
+            if (_sessionKey != state.SessionKey)
             {
-                _sessionKey = sessionKey;
+                _sessionKey = state.SessionKey;
                 _results = [];
             }
 
-            _results[result.Snapshot.DriverNumber] = result;
+            _results[result.Snapshot.DriverNumber] = publication;
         }
 
         Changed?.Invoke();
+        Published?.Invoke(publication);
     }
 
     /// <summary>Descarta los resultados al cambiar de sesión o saltar en el replay.</summary>

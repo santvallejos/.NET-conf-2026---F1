@@ -19,6 +19,7 @@ builder.Services.AddPitWallUi(builder.Configuration);
 builder.Services.AddPitWallTyres(builder.Configuration);
 builder.Services.AddPitWallEnergy(builder.Configuration);
 builder.Services.AddPitWallStrategy(builder.Configuration);
+builder.Services.AddPitWallJevWorker();
 builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics.AddMeter(JevMetrics.MeterName, StrategyMetrics.MeterName));
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using PitWall.Jev.Caching;
 using PitWall.Jev.Fake;
 using PitWall.Jev.Guards;
+using PitWall.Jev.Runtime;
 
 namespace PitWall.Jev;
 
@@ -14,7 +15,8 @@ public static class JevServiceCollectionExtensions
     /// <summary>
     /// Registra <see cref="JevOptions"/> y <see cref="IJevClient"/> como <see cref="GuardedJevClient"/> sobre el
     /// cliente con clave <c>Jev:Client</c>. El cliente real se registra aparte como servicio con clave
-    /// <see cref="JevClientKind.Real"/>; mientras no exista, cada llamada falla con alerta.
+    /// <see cref="JevClientKind.Real"/>; mientras no exista, cada llamada falla con alerta. Los cambios en caliente
+    /// pasan por <see cref="JevRuntimeOverrides"/> y se ven en <see cref="IOptionsMonitor{TOptions}"/>.
     /// </summary>
     public static IServiceCollection AddPitWallJev(this IServiceCollection services)
     {
@@ -24,6 +26,10 @@ public static class JevServiceCollectionExtensions
             .BindConfiguration(JevOptions.SectionName)
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.TryAddSingleton<JevRuntimeOverrides>();
+        services.AddSingleton<IPostConfigureOptions<JevOptions>>(sp => sp.GetRequiredService<JevRuntimeOverrides>());
+        services.AddSingleton<IOptionsChangeTokenSource<JevOptions>>(sp => sp.GetRequiredService<JevRuntimeOverrides>());
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IJevCacheStore, InMemoryJevCacheStore>();

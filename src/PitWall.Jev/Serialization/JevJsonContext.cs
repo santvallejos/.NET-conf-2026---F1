@@ -11,6 +11,8 @@ namespace PitWall.Jev.Serialization;
 [JsonSerializable(typeof(JevRequest))]
 [JsonSerializable(typeof(Dictionary<string, JevAnswer>))]
 [JsonSerializable(typeof(List<JevMonteCarloEntry>))]
+[JsonSerializable(typeof(JevStrategyState))]
+[JsonSerializable(typeof(JevTriageState))]
 public sealed partial class JevJsonContext : JsonSerializerContext
 {
 }
